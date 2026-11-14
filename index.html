@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fff7e9">
+<title>Purrcels: Cat Logic Puzzle | Play in your browser</title>
+<meta name="description" content="Every cat needs its space. Play Purrcels, a cozy cat logic puzzle where each colorful patch needs exactly one cat.">
+<meta property="og:type" content="website"><meta property="og:title" content="Purrcels: Cat Logic Puzzle"><meta property="og:description" content="Every cat needs its space. Try a cozy cat-placement puzzle in your browser.">
+<link rel="icon" href="assets/favicon.png" type="image/png"><link rel="stylesheet" href="assets/site.css">
+<script src="assets/puzzle.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header wrap"><nav class="nav glass" aria-label="Main navigation">
+<a class="brand" href="./"><img src="assets/app-mark.webp" width="38" height="28" alt="">Purrcels</a>
+<div class="nav-links"><a href="#how-to">How to play</a><a class="button primary nav-play" href="#puzzle">Play puzzle <span aria-hidden="true">↗</span></a></div>
+</nav></header>
+<main id="main">
+<section class="hero wrap" aria-labelledby="headline">
+<div class="hero-copy">
+<p class="eyebrow badge"><span aria-hidden="true">✦</span> A cozy cat logic game</p>
+<h1 id="headline"><img class="wordmark" src="assets/wordmark.webp" alt="Purrcels: Cat Logic Puzzle" width="680" height="253"><span>Every cat needs<br> its space.</span></h1>
+<p class="intro">Find a patch for every cat. Keep them out of the same row or column, and don’t let them touch, not even at the corners.</p>
+<div class="hero-actions"><a class="button primary" href="#puzzle">Play a puzzle <span aria-hidden="true">↗</span></a><a class="button secondary" href="#how-to">Learn the rules</a></div>
+<p class="micro"><span class="dot" aria-hidden="true"></span> Play in your browser. No sign-up.</p>
+</div>
+<section id="puzzle" class="game glass" aria-labelledby="puzzle-title">
+<div class="game-top"><div><p class="eyebrow">The puzzle board</p><h2 id="puzzle-title">Find their spots</h2></div><span class="progress" id="progress">0 / 5 cats</span></div>
+<p id="instructions" class="sr">Use the arrow keys to move between cells. Press Enter or Space to use the selected tool. A letter marks each colored patch.</p>
+<div id="board" class="board" role="group" aria-label="Five by five cat puzzle" aria-describedby="instructions"></div>
+<noscript><p>Enable JavaScript to play the web puzzle. The rules are available below.</p></noscript>
+<div class="game-controls">
+<div class="tools" role="group" aria-label="Cell tool"><button type="button" id="cat-tool" aria-pressed="true"><img src="assets/cat.webp" width="22" height="20" alt=""> Cat</button><button type="button" id="mark-tool" aria-pressed="false"><span aria-hidden="true">×</span> Mark</button></div>
+<div class="game-actions"><button type="button" id="hint">Hint</button><button type="button" id="reset">Reset</button></div>
+</div>
+<p id="game-status" class="game-status" role="status" aria-live="polite">Select a tile to place a cat.</p>
+<div class="game-bottom"><span id="board-number">Puzzle 1 of 4</span><button type="button" id="next">Next puzzle <span aria-hidden="true">→</span></button></div>
+</section>
+</section>
+<section id="how-to" class="rules wrap" aria-labelledby="rules-title">
+<p class="eyebrow">How to play</p><h2 id="rules-title">Three rules. Five cats.</h2>
+<p class="section-intro">Each row, column, and colored patch needs exactly one cat. Start with the patch that has the fewest possible spots.</p>
+<div class="rule-grid">
+<article><span class="rule-icon mint" aria-hidden="true">A</span><h3>One cat per patch</h3><p>Patch letters match the colors, so you can follow the regions without relying on color alone.</p></article>
+<article><span class="rule-icon lilac" aria-hidden="true">↔</span><h3>One per row and column</h3><p>Once a cat has a spot, rule out the other tiles in its row and column.</p></article>
+<article><span class="rule-icon peach" aria-hidden="true">◇</span><h3>No touching</h3><p>Cats need a little breathing room. A shared side or corner is off-limits.</p></article>
+</div>
+</section>
+<section class="questions wrap" aria-labelledby="faq-title"><h2 id="faq-title">A little help</h2>
+<details><summary>How do I mark an impossible tile?</summary><p>Select Mark, then choose the tile. Choose that tile again to clear the mark. Marks are just notes.</p></details>
+<details><summary>What does Hint do?</summary><p>It reveals one correct spot and explains what to do next. If a cat is in a spot that can’t be part of the solution, the hint points it out first.</p></details>
+<details><summary>Will my progress be saved?</summary><p>This web demo does not save your board. It resets if you reload or leave the page.</p></details>
+</section>
+</main>
+<footer class="site-footer wrap"><a class="brand" href="./"><img src="assets/app-mark.webp" width="35" height="25" alt="">Purrcels</a><p>A little logic. A lot of cat.</p><nav aria-label="Legal"><a href="privacy.html">Privacy Policy</a><a href="terms.html">Terms &amp; Conditions</a></nav></footer>
+</body></html>
