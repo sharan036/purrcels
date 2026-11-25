@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="purrcels-runtime" content="static">
+  <meta name="theme-color" content="#51283c">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Overview · Purrcels Studio</title>
+  <link rel="icon" href="../assets/favicon.png">
+  <link rel="preload" href="./fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="./dashboard.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <a href="#content" class="skip">Skip to dashboard</a>
+  <aside class="sidebar" id="sidebar" aria-label="Studio navigation">
+    <div class="brand-wrap"><a class="brand" href="#overview" aria-label="Purrcels Studio overview"><img src="../assets/app-mark.webp" alt="" width="47" height="34"><span>Purrcels<span class="studio">Studio</span></span></a><button id="close-nav" class="square mobile-only" aria-label="Close navigation" data-icon="close"></button></div>
+    <nav aria-label="Dashboard">
+      <p class="nav-group">Workspace</p>
+      <a href="#overview" data-view="overview"><i data-icon="overview"></i>Overview</a>
+      <a href="#results" data-view="results"><i data-icon="results"></i>Game results</a>
+      <a href="#reviews" data-view="reviews"><i data-icon="flag"></i>Review queue<span id="queue-count" class="nav-count" hidden></span></a>
+      <p class="nav-group second">Research</p>
+      <a href="#competitors" data-view="competitors"><i data-icon="telescope"></i>Competitors</a>
+      <p class="nav-group second">Settings</p>
+      <a href="#sources" data-view="sources"><i data-icon="database"></i>Data sources</a>
+    </nav>
+    <div class="app-identity"><div class="app-picture"><img src="../assets/cat.webp" width="31" height="28" alt=""></div><div><b>Cat Logic Puzzle</b><span>Android · com.purrcels</span></div></div>
+  </aside>
+  <button id="nav-scrim" hidden aria-label="Close navigation"></button>
+  <div class="workspace">
+    <header class="topbar"><div class="crumb"><button id="open-nav" class="square mobile-only" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" data-icon="menu"></button><i data-icon="panel"></i><span>Studio</span><i data-icon="chevron"></i><strong id="crumb">Overview</strong></div><a href="#sources" class="source-chip" id="source-chip"><span class="source-dot"></span><span id="source-label">Data source</span></a></header>
+    <main id="content" tabindex="-1"><p class="loading">Loading workspace…</p></main>
+    <noscript><p>This dashboard needs JavaScript to display results and review notes.</p></noscript>
+  </div>
+  <dialog id="record-dialog" aria-labelledby="detail-name"><div id="detail"></div></dialog>
+  <input type="file" accept=".json,application/json" id="import-file" hidden>
+  <div id="notice" role="status" aria-live="polite"></div>
+</body>
+</html>
