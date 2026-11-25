@@ -8,6 +8,12 @@ Run `python3 -m http.server 8080` from this directory, then open `http://localho
 
 Run `node --test tests/puzzle.test.cjs` to check the puzzle rules and each board's unique solution.
 
+## Studio dashboard
+
+Open [Purrcels Studio](./dashboard/) to explore ranked attempts, inspect verified solves, manage reviews, export a filtered CSV and compare public competitor data. The public page starts with labelled sample data. Import a local ranked snapshot or run the loopback operator service for real results.
+
+See the [operator guide](./tools/dashboard/README.md) for PostgreSQL access, local review storage and snapshot export. Run `node --test tests/*.test.cjs tests/*.test.mjs` for the website and dashboard regression suite.
+
 ## GitHub Pages
 
 1. Create or open a repository dedicated to this site.
