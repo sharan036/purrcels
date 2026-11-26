@@ -1,10 +1,11 @@
-import {escapeText as escape} from './views.js?v=3';
-import {statsView,trendView,moderationCounts,listShell,listResults,detailView,identityView,historyView,decisionForm,auditView,head} from './admin-views.js?v=3';
+import {timeZone} from './time.js?v=4';
+import {escapeText as escape} from './views.js?v=4';
+import {statsView,trendView,moderationCounts,listShell,listResults,detailView,identityView,historyView,decisionForm,auditView,head} from './admin-views.js?v=4';
 
 const loading='<p class="admin-muted" role="status">Loading…</p>';
 const unavailable=(message,retry)=>'<p class="admin-muted" role="status">'+escape(message)+'</p><button type="button" class="button" data-admin="'+retry+'">Retry</button>';
 const fresh=()=>({search:'',source:'game',filter:'all',offset:0,tokens:[null]});
-export function createAdmin(content,call,notify) {
+export function createAdmin(content,call,notify,onStats) {
   let epoch=0, view='', list=fresh(), selected=null, section='attempts', historyPage=0, auditPage=0, pendingUid=null;
   let listVersion=0, historyVersion=0, stats=null, statsAt=0, statsJob=null, saving=false;
   const el=id=>content.querySelector('#'+id);
@@ -17,8 +18,8 @@ export function createAdmin(content,call,notify) {
   async function getStats() {
     if(stats && Date.now()-statsAt<60000) return stats;
     if(!statsJob) {
-      const job=call('stats',{}).then(result=>{
-        if(statsJob===job){stats=result;statsAt=Date.now();}
+      const job=call('stats',{timeZone}).then(result=>{
+        if(statsJob===job){stats=result;statsAt=Date.now();onStats(result.stats);}
         return result;
       }).finally(()=>{if(statsJob===job)statsJob=null;});
       statsJob=job;
@@ -32,7 +33,7 @@ export function createAdmin(content,call,notify) {
       const data=await getStats();
       if(!target.isConnected) return;
       target.innerHTML=view==='moderation'?moderationCounts(data):statsView(data,compact);
-      if(!compact && el('admin-trend')) el('admin-trend').innerHTML=trendView(data.daily);
+      if(!compact && el('admin-trend')) el('admin-trend').innerHTML=trendView(data.daily,data.timeZone);
     } catch(err) {if(target.isConnected) target.innerHTML=unavailable(err.message,'stats');}
   }
   async function loadList() {
@@ -67,6 +68,10 @@ export function createAdmin(content,call,notify) {
       summary(el('admin-stats'),false);loadAudit();return;
     }
     content.innerHTML=listShell(list);summary(el('admin-stats'),false);loadList();
+  }
+  function refresh() {
+    if(el('admin-list')) {summary(el('admin-stats'),false);loadList();}
+    else if(el('admin-audit')) {summary(el('admin-stats'),false);loadAudit();}
   }
   async function loadIdentity() {
     if(!selected) return;
@@ -146,6 +151,7 @@ export function createAdmin(content,call,notify) {
       case 'source': list={...fresh(),source:button.dataset.source};directory();break;
       case 'refresh': statsAt=0;directory();break;
       case 'identity': loadIdentity();break;
+      case 'refresh-player': if(selected && !saving && !el('moderation-form')) player(selected.uid,true);break;
       case 'history': loadHistory();break;
       case 'history-next': historyPage+=25;loadHistory();break;
       case 'history-prev': historyPage=Math.max(0,historyPage-25);loadHistory();break;
@@ -153,6 +159,7 @@ export function createAdmin(content,call,notify) {
       case 'audit-next': auditPage+=25;loadAudit();break;
       case 'audit-prev': auditPage=Math.max(0,auditPage-25);loadAudit();break;
       case 'decide':
+        content.querySelector('[data-admin="refresh-player"]').disabled=true;
         el('admin-decision').innerHTML=decisionForm(selected);
         el('moderation-form').querySelector('textarea').focus();break;
       case 'cancel': if(!saving)player(selected.uid,true);break;
@@ -172,7 +179,7 @@ export function createAdmin(content,call,notify) {
     if(e.target.id==='admin-section'){section=e.target.value;historyPage=0;loadHistory();}
     if(e.target.name==='filter' && e.target.form?.id==='admin-search')e.target.form.requestSubmit();
   });
-  return {reset,leave,summary,directory,show(next){
+  return {reset,leave,summary,directory,refresh,show(next){
     if(view===next)return;
     view=next;
     if(pendingUid){const uid=pendingUid;pendingUid=null;player(uid);}else directory();

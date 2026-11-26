@@ -10,8 +10,8 @@
   <title>Operator sign-in · Purrcels Studio</title>
   <link rel="icon" href="../assets/favicon.png">
   <link rel="preload" href="./fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="./dashboard.css?v=3">
-  <script type="module" src="./app.js?v=3"></script>
+  <link rel="stylesheet" href="./dashboard.css?v=4">
+  <script type="module" src="./app.js?v=4"></script>
 </head>
 <body>
   <main id="login-screen" class="login-screen">
@@ -42,8 +42,6 @@
       <p class="nav-group second" data-superadmin hidden>Administration</p>
       <a href="#players" data-view="players" data-superadmin hidden><i data-icon="players"></i>Players</a>
       <a href="#moderation" data-view="moderation" data-superadmin hidden><i data-icon="shield"></i>Moderation</a>
-      <p class="nav-group second">Research</p>
-      <a href="#competitors" data-view="competitors"><i data-icon="telescope"></i>Competitors</a>
       <p class="nav-group second">Settings</p>
       <a href="#sources" data-view="sources"><i data-icon="database"></i>Data sources</a>
     </nav>
@@ -51,7 +49,7 @@
   </aside>
   <button id="nav-scrim" hidden aria-label="Close navigation"></button>
   <div class="workspace">
-    <header class="topbar"><div class="crumb"><button id="open-nav" class="square mobile-only" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" data-icon="menu"></button><i data-icon="panel"></i><span>Studio</span><i data-icon="chevron"></i><strong id="crumb">Overview</strong></div><div class="account-controls"><span class="admin-role" data-superadmin hidden>Superadmin</span><a href="#sources" class="source-chip" id="source-chip"><span class="source-dot"></span><span id="source-label">Game server</span></a><button class="button" id="sign-out">Sign out</button></div></header>
+    <header class="topbar"><div class="crumb"><button id="open-nav" class="square mobile-only" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" data-icon="menu"></button><i data-icon="panel"></i><span>Studio</span><i data-icon="chevron"></i><strong id="crumb">Overview</strong></div><div class="account-controls"><span class="studio-zone" id="studio-zone"></span><span class="admin-role" data-superadmin hidden>Superadmin</span><a href="#sources" class="source-chip" id="source-chip"><span class="source-dot"></span><span id="source-label">Game server</span></a><button class="button" id="sign-out">Sign out</button></div></header>
     <main id="content" tabindex="-1"><p class="loading">Loading workspace…</p></main>
 
   </div>

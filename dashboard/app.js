@@ -1,14 +1,15 @@
-import {cleanReview, filterResults, ID_PATTERN, readSnapshot, resultsCsv, selectPeriod} from './model.js';
-import {createAdmin} from './admin.js?v=3';
+import {cleanReview, filterResults, ID_PATTERN, readQueuePage, readSnapshot, resultsCsv, selectPeriod} from './model.js?v=4';
+import {createAdmin} from './admin.js?v=4';
 import {request} from './session.js';
-import {icon} from './icons.js?v=3';
-import {details, listView, overview, pageTitle, resultsPanel} from './views.js?v=3';
-import {competitors, dataSources} from './resources.js?v=3';
+import {timeZone, localDateKey, localDateTime, zoneLabel} from './time.js?v=4';
+import {icon} from './icons.js?v=4';
+import {details, escapeText, listView, overview, pageTitle, resultsPanel} from './views.js?v=4';
+import {dataSources} from './resources.js?v=4';
 
 const $ = query => document.querySelector(query);
 const content = $('#content'), dialog = $('#record-dialog');
 const freshFilters = () => ({outcome:'all',difficulty:'all',review:'all',search:''});
-const viewNames = {overview:'Overview',results:'Game results',reviews:'Review queue',competitors:'Competitors',sources:'Data sources',players:'Players',moderation:'Moderation'};
+const viewNames = {overview:'Overview',results:'Game results',reviews:'Review queue',sources:'Data sources',players:'Players',moderation:'Moderation'};
 const state = {days:7,mode:'all',filters:freshFilters(),reviews:{},page:1};
 const adminView = view => ['players','moderation'].includes(view);
 const viewFromHash = () => {
@@ -17,16 +18,18 @@ const viewFromHash = () => {
 };
 const channel = typeof BroadcastChannel==='function' ? new BroadcastChannel('purrcels.studio.session') : null;
 const pendingKey = 'purrcels.studio.logout-pending';
-let identity=null, dataset=null, inventory=null, currentView='', activeId=null, openRevision=0;
+let identity=null, dataset=null, inventory=null, currentView='', activeId=null, activeAttempt=null, openRevision=0;
 let generation=0, listVersion=0, sessionTimer, noticeTimer, failure='', logoutPending=false;
+let reviewPage=null, reviewDate=null, reviewVersion=0, reviewTimer, reviewError='', flaggedTotal=null, exportJob=null;
+const allDateReviews=()=>currentView==='reviews' && identity?.reviewQueue===true;
 try { logoutPending=sessionStorage.getItem(pendingKey)==='1'; } catch {}
 for (const node of document.querySelectorAll('[data-icon]')) node.innerHTML=icon(node.dataset.icon);
 
-async function adminRequest(path,body) {
-  if(identity?.role!=='superadmin') throw Error('Superadmin access required.');
+async function operatorRequest(path,body) {
+  if(!identity) throw Error('Sign in to Purrcels Studio.');
   const ticket=generation, username=identity.username;
   try {
-    const result=await request('admin/'+path,{...body,expectedOperator:username});
+    const result=await request(path,{...body,expectedOperator:username});
     if(ticket!==generation) throw Error('Session changed.');
     if(result.operator!==username) {lock('Your account changed. Sign in again.',true);throw Error('Session changed.');}
     return result;
@@ -35,7 +38,13 @@ async function adminRequest(path,body) {
     throw err;
   }
 }
-const admin=createAdmin(content,adminRequest,notify);
+async function adminRequest(path,body) {
+  if(identity?.role!=='superadmin') throw Error('Superadmin access required.');
+  return operatorRequest('admin/'+path,body);
+}
+const admin=createAdmin(content,adminRequest,notify,stats=>{
+  if(identity?.reviewQueue) {flaggedTotal=stats.flagged;updateBadge();}
+});
 function roleUI(role) {
   for(const node of document.querySelectorAll('[data-superadmin]')) node.hidden=role!=='superadmin';
 }
@@ -56,8 +65,9 @@ function pending(value) {
 }
 function lock(message,enabled=false,retry=false) {
   generation++; listVersion++; clearTimeout(sessionTimer); clearTimeout(noticeTimer);
+  clearQueue(); flaggedTotal=null; exportJob=null;
   admin.reset(); roleUI(null);
-  identity=null; dataset=null; inventory=null; failure=''; currentView=''; activeId=null;
+  identity=null; dataset=null; inventory=null; failure=''; currentView=''; activeId=null; activeAttempt=null;
   Object.assign(state,{days:7,mode:'all',filters:freshFilters(),reviews:{},page:1});
   if (dialog.open) dialog.close();
   $('#detail').replaceChildren(); content.replaceChildren(); $('#notice').replaceChildren(); $('#notice').classList.remove('visible');
@@ -73,12 +83,15 @@ function activate(user) {
     lock('Your session has expired. Sign in again.',true); return;
   }
   const role=user.role==='superadmin'?'superadmin':'operator';
-  if (identity?.username!==user.username || identity?.role!==role) lock('');
-  identity={username:user.username,expiresAt:expiry,role}; roleUI(role);
+  const reviewQueue=user.reviewQueue===true;
+  const sameAccount=identity?.username===user.username && identity.role===role && identity.reviewQueue===reviewQueue;
+  if (!sameAccount) lock('');
+  identity={username:user.username,expiresAt:expiry,role,reviewQueue}; roleUI(role);
   clearTimeout(sessionTimer);
   sessionTimer=setTimeout(()=>lock('Your session has expired. Sign in again.',true),expiry-Date.now());
   $('#login-screen').hidden=true; $('#studio-shell').hidden=false; $('#password').value='';
-  render(); fetchWorkspace();
+  render();
+  if (!adminView(currentView) || sameAccount) refreshVisible();
 }
 async function checkSession() {
   if (logoutPending) return signOut();
@@ -139,18 +152,70 @@ async function fetchWorkspace() {
   if (!identity) return;
   const epoch=generation, version=++listVersion;
   try {
-    const data=await request('workspace');
+    const data=await request('workspace?timeZone='+encodeURIComponent(timeZone));
     if (epoch!==generation || version!==listVersion) return;
     if (data.operator!==identity.username) { lock('Checking your session…'); return checkSession(); }
     const fresh=readSnapshot(data.snapshot);
     const reviews={};
     for (const [id,value] of Object.entries(data.reviews)) if (ID_PATTERN.test(id)) reviews[id]=cleanReview(value);
-    dataset=fresh; inventory=data.inventory; state.reviews=reviews; failure=''; render();
+    dataset=fresh; inventory=data.inventory; state.reviews=reviews; failure='';
+    if(Number.isSafeInteger(data.flagged)) flaggedTotal=data.flagged;
+    render();
   } catch (err) {
     if (epoch!==generation || version!==listVersion) return;
     if (err.status===401 || err.status===403) return lock('Sign in again to view game results.',true);
     failure=err.message; render();
   }
+}
+function clearQueue() {
+  clearTimeout(reviewTimer); reviewVersion++; reviewPage=null; reviewDate=null; reviewError='';
+}
+function updateBadge() {
+  const count=identity?.reviewQueue ? flaggedTotal : Object.values(state.reviews).filter(r=>r.state==='flagged').length;
+  $('#queue-count').hidden=!count; $('#queue-count').textContent=count??'';
+}
+function queuePanel() {
+  if(reviewError) return '<div class="unavailable" role="status"><p>'+escapeText(reviewError)+'</p><button class="button" data-action="live">Retry</button></div>';
+  if(!reviewPage) return '<p class="unavailable" role="status">Loading reviewed attempts…</p>';
+  return resultsPanel(reviewPage.rows,{...state,reviews:reviewPage.reviews},true,reviewPage.total);
+}
+function paintQueue() {
+  const target=$('#list-panel');
+  if(!allDateReviews() || !target) return;
+  target.innerHTML=queuePanel();
+  content.querySelector('[data-action="export"]').disabled=!reviewPage || !!exportJob;
+}
+function queueFilters() {
+  return {mode:state.mode,...state.filters};
+}
+async function fetchQueue({keepDate=false,clear=false,delay=0}={}) {
+  clearTimeout(reviewTimer);
+  const version=++reviewVersion;
+  if(!keepDate) reviewDate=null;
+  if(clear) reviewPage=null;
+  reviewError=''; paintQueue();
+  if(delay) {
+    reviewTimer=setTimeout(()=>fetchQueue(),delay); return;
+  }
+  try {
+    const data=await operatorRequest('review-queue',{...queueFilters(),offset:(state.page-1)*12,asOf:reviewDate});
+    if(version!==reviewVersion || !allDateReviews()) return;
+    const page=readQueuePage(data), last=Math.max(1,Math.ceil(page.total/12));
+    reviewDate=page.asOf; flaggedTotal=page.flagged; updateBadge();
+    if(state.page>last) {
+      state.page=last; return fetchQueue({keepDate:true,clear:true});
+    }
+    reviewPage=page; paintQueue();
+  } catch(err) {
+    if(version===reviewVersion && allDateReviews()) {reviewPage=null;reviewError=err.message;paintQueue();}
+  }
+}
+function refreshVisible() {
+  if(adminView(currentView)) return admin.refresh();
+  return allDateReviews()?fetchQueue():fetchWorkspace();
+}
+function findAttempt(id) {
+  return (allDateReviews()?reviewPage:dataset)?.rows.find(row=>row.id===id);
 }
 function currentRows() {
   if (!dataset) return [];
@@ -161,21 +226,22 @@ function currentRows() {
 function render() {
   if (!identity) return;
   const next=viewFromHash();
+  if(location.hash && !Object.hasOwn(viewNames,location.hash.slice(1))) history.replaceState(null,'','#overview');
   if (next!==currentView) {
-    admin.leave(); currentView=next; state.page=1; state.mode='all'; state.filters=freshFilters();
+    clearQueue(); listVersion++; exportJob=null; admin.leave(); currentView=next; state.page=1; state.mode='all'; state.filters=freshFilters();
     if (next==='reviews') state.filters.review='flagged';
   }
+  $('#studio-zone').textContent=zoneLabel(); $('#studio-zone').title='Display time zone · '+timeZone;
   document.title=viewNames[currentView]+' · Purrcels Studio'; $('#crumb').textContent=viewNames[currentView];
   for (const link of document.querySelectorAll('[data-view]')) {
     if (link.dataset.view===currentView) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
   }
   $('#source-label').textContent=failure?'Refresh unavailable':'Game server';
   $('#source-chip').dataset.source=failure?'offline':'operator';
-  const count=Object.values(state.reviews).filter(r=>r.state==='flagged').length;
-  $('#queue-count').hidden=!count; $('#queue-count').textContent=count;
+  updateBadge();
   if (adminView(currentView)) {admin.show(currentView);return;}
-  if (currentView==='competitors') content.innerHTML=competitors();
-  else if (currentView==='sources') content.innerHTML=dataSources(dataset,inventory,identity.username);
+  if (allDateReviews()) {content.innerHTML=listView([],state,true,queuePanel());return;}
+  if (currentView==='sources') content.innerHTML=dataSources(dataset,inventory,identity.username);
   else if (!dataset) content.innerHTML='<h1>'+pageTitle(currentView)+'</h1><section class="card unavailable"><h2>'+(failure?'Game results unavailable':'Reading ranked attempts…')+'</h2>'+(failure?'<button class="button" data-action="live">Retry</button>':'')+'</section>';
   else if (currentView==='overview') content.innerHTML=overview(dataset,selectPeriod(dataset,state.days),state);
   else content.innerHTML=listView(currentRows(),state,currentView==='reviews');
@@ -183,20 +249,23 @@ function render() {
     const target=document.createElement('div'); target.id='admin-stats';
     content.querySelector('.analytics-row').before(target); admin.summary(target,true);
   }
-  if (failure && currentView!=='competitors') {
+  if (failure) {
     const warning=document.createElement('p'); warning.className='scope-note warning';
     warning.textContent=failure+(dataset?' Showing the last successful refresh.':''); content.prepend(warning);
   }
-  if (dataset && !['competitors','sources'].includes(currentView)) {
+  if (dataset && currentView!=='sources') {
     const footer=document.createElement('footer'); footer.className='workspace-foot';
-    footer.textContent='Game server · Updated '+new Date(dataset.asOf).toISOString().slice(0,16).replace('T',' ')+' UTC';
+    footer.textContent='Game server · Updated '+localDateTime(dataset.asOf);
     content.append(footer);
   }
 }
 function navigate() {
   if (dialog.open) dialog.close();
   toggleNav(false);
-  if (identity) { render(); window.scrollTo(0,0); content.focus({preventScroll:true}); }
+  if (identity) {
+    render(); if(!adminView(currentView)) refreshVisible();
+    window.scrollTo(0,0); content.focus({preventScroll:true});
+  }
 }
 function toggleNav(open) {
   document.body.classList.toggle('nav-open',open);
@@ -230,10 +299,11 @@ document.addEventListener('keydown', e => {
   }
 });
 function openDetail(id) {
-  const row = dataset?.rows.find(r => r.id === id);
+  const row = findAttempt(id);
   if (!row) return;
-  activeId = id; openRevision = state.reviews[id]?.revision || 0;
-  $('#detail').innerHTML = details(row,state.reviews[id]);
+  const review=(allDateReviews()?reviewPage.reviews:state.reviews)[id];
+  activeId = id; activeAttempt=row; openRevision = review?.revision || 0;
+  $('#detail').innerHTML = details(row,review);
   if (identity.role==='superadmin') {
     const button=document.createElement('button');button.type='button';button.className='button';button.dataset.action='inspect-player';
     button.textContent='View player';$('#detail .detail-actions').prepend(button);
@@ -249,11 +319,11 @@ dialog.addEventListener('click', e => {
 });
 dialog.addEventListener('close',() => {
   const target = document.querySelector('[data-id="' + activeId + '"]');
-  activeId = null;
+  activeId = null; activeAttempt=null;
   if (identity) (target || content).focus({preventScroll:true});
 });
 async function saveReview(nextState) {
-  const id=activeId, epoch=generation, row=dataset?.rows.find(r=>r.id===id);
+  const id=activeId, epoch=generation, row=activeAttempt;
   if (!identity || !row) return;
   const note=$('#review-note').value.trim(), fields=[...dialog.querySelectorAll('[data-review]')];
   fields.forEach(button=>button.disabled=true);
@@ -261,24 +331,61 @@ async function saveReview(nextState) {
     const data=await request('reviews/'+id,{state:nextState,note,expectedRevision:openRevision,
       startedAt:new Date(row.started).toISOString(),expectedOperator:identity.username});
     if (epoch!==generation) return;
-    listVersion++; state.reviews[id]=cleanReview(data); render();
+    listVersion++;
+    const saved=cleanReview(data);
+    if(dataset?.rows.some(attempt=>attempt.id===id)) state.reviews[id]=saved;
+    if(allDateReviews()) await fetchQueue();
+    else {render(); if(identity.reviewQueue && !adminView(currentView)) fetchWorkspace();}
+    if(epoch!==generation) return;
     if (activeId===id && dialog.open) dialog.close();
     notify(nextState==='flagged'?'Review saved to the queue.':'Review resolved.');
   } catch (err) {
     if (epoch!==generation) return;
     if (err.status===401 || err.status===403) return lock('Sign in again to continue.',true);
-    if (err.status===409) await fetchWorkspace();
+    if (err.status===409) await refreshVisible();
     if (dialog.open && activeId===id) $('#review-error').textContent=err.status===409?'Another operator changed this review. Reopen the attempt to read the latest note.':err.message;
     fields.forEach(button=>button.disabled=false);
   }
 }
-function exportRows() {
-  const rows = currentRows();
-  const blob = new Blob([resultsCsv(rows,state.reviews)],{type:'text/csv;charset=utf-8'});
+function downloadCsv(parts,count,at) {
+  const blob = new Blob(parts,{type:'text/csv;charset=utf-8'});
   const url = URL.createObjectURL(blob), a = document.createElement('a');
-  a.href=url; a.download='purrcels-' + currentView + '-' + new Date(dataset.asOf).toISOString().slice(0,10) + '.csv';
+  a.href=url; a.download='purrcels-' + currentView + '-' + localDateKey(at) + '.csv';
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url),1000);
-  notify('Exported ' + rows.length + ' attempts.');
+  notify('Exported ' + count + ' attempts.');
+}
+async function exportRows() {
+  if(!allDateReviews()) {
+    if(dataset) {const rows=currentRows(); downloadCsv([resultsCsv(rows,state.reviews)],rows.length,dataset.asOf);}
+    return;
+  }
+  if(exportJob || !reviewPage) return;
+  const job={}, asOf=reviewPage.asOf, filters=queueFilters(), total=reviewPage.total;
+  exportJob=job;
+  content.querySelector('[data-action="export"]').disabled=true;
+  try {
+    const parts=[];
+    let offset=0;
+    do {
+      const data=await operatorRequest('review-queue',{...filters,offset,limit:250,asOf});
+      if(exportJob!==job || !allDateReviews()) return;
+      const page=readQueuePage(data);
+      if(page.total!==total || page.asOf!==asOf || (!page.rows.length && offset<total)) {
+        throw Error('The review list changed. Refresh before exporting.');
+      }
+      const csv=resultsCsv(page.rows,page.reviews);
+      parts.push(offset===0?csv:csv.slice(csv.indexOf('\r\n')+2));
+      offset+=page.rows.length;
+    } while(offset<total);
+    downloadCsv(parts,total,asOf);
+  } catch(err) {if(exportJob===job) notify(err.message);}
+  finally {
+    if(exportJob===job) {
+      exportJob=null;
+      const button=content.querySelector('[data-action="export"]');
+      if(allDateReviews() && button) button.disabled=!reviewPage;
+    }
+  }
 }
 document.addEventListener('click',e=>{
   if (!identity) return;
@@ -288,7 +395,7 @@ document.addEventListener('click',e=>{
   if (target.dataset.review) return saveReview(target.dataset.review);
   switch (target.dataset.action) {
     case 'inspect-player': {
-      const row=dataset?.rows.find(r=>r.id===activeId);
+      const row=activeAttempt;
       if(!row || identity.role!=='superadmin') break;
       const ticket=generation;target.disabled=true;
       adminRequest('attempt-owner',{key:row.id,startedAt:new Date(row.started).toISOString()}).then(result=>{
@@ -297,10 +404,15 @@ document.addEventListener('click',e=>{
       break;
     }
     case 'close': dialog.close(); break;
-    case 'export': if (dataset) exportRows(); break;
-    case 'prev': state.page=Math.max(1,state.page-1); render(); break;
-    case 'next': state.page=Math.min(Math.ceil(currentRows().length/12),state.page+1); render(); break;
-    case 'live': fetchWorkspace(); break;
+    case 'export': exportRows(); break;
+    case 'prev': case 'next': {
+      const total=allDateReviews()?reviewPage?.total:currentRows().length;
+      if(total==null) break;
+      state.page=Math.max(1,Math.min(Math.ceil(total/12),state.page+(target.dataset.action==='next'?1:-1)));
+      if(allDateReviews()) fetchQueue({keepDate:true,clear:true}); else render();
+      break;
+    }
+    case 'live': refreshVisible(); break;
   }
 });
 content.addEventListener('change',e => {
@@ -309,12 +421,15 @@ content.addEventListener('change',e => {
   if (field==='days') state.days=Number(e.target.value);
   else if (field==='mode') state.mode=e.target.value;
   else state.filters[field]=e.target.value;
-  state.page=1; render(); content.querySelector('[data-filter="' + field + '"]')?.focus({preventScroll:true});
+  state.page=1;
+  if(allDateReviews()) fetchQueue({clear:true});
+  else {render();content.querySelector('[data-filter="' + field + '"]')?.focus({preventScroll:true});}
 });
 content.addEventListener('input',e => {
   if (e.target.id==='find-results') {
     state.filters.search=e.target.value; state.page=1;
-    $('#list-panel').innerHTML=resultsPanel(currentRows(),state,currentView==='reviews');
+    if(allDateReviews()) fetchQueue({clear:true,delay:220});
+    else $('#list-panel').innerHTML=resultsPanel(currentRows(),state,currentView==='reviews');
   }
 });
 window.addEventListener('hashchange',navigate);
@@ -325,6 +440,8 @@ document.addEventListener('visibilitychange',()=>{
 });
 setInterval(()=>{
   const editing=document.activeElement?.matches('input,textarea,select');
-  if (identity && document.visibilityState==='visible' && !dialog.open && !editing) fetchWorkspace();
+  if (identity && document.visibilityState==='visible' && !dialog.open && !editing) {
+    if(adminView(currentView)) checkSession(); else refreshVisible();
+  }
 },60000);
 checkSession();

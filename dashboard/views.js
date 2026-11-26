@@ -1,13 +1,13 @@
-import {DAY, MODES, OUTCOMES, REVIEW_STATES, formatTime, metrics, puzzleName} from './model.js';
-import {icon} from './icons.js';
+import {MODES, OUTCOMES, REVIEW_STATES, formatTime, metrics, puzzleName} from './model.js?v=4';
+import {icon} from './icons.js?v=4';
+import {dateText, localDateTime, zoneLabel} from './time.js?v=4';
 
 export const escapeText = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const num = n => new Intl.NumberFormat('en-US').format(n);
-export const dateText = (n, opts = {month:'short', day:'numeric'}) => new Intl.DateTimeFormat('en-GB', {...opts, timeZone:'UTC'}).format(n);
-const dateTime = n => dateText(n, {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}) + ' UTC';
+const dateTime = localDateTime;
 const cap = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 const modeColor = {campaign:'#824867',daily:'#80a999',tower:'#e3a36e'};
-const labels = {overview:['Game overview','Ranked play across Campaign, Daily Bento and Neko Tower.'],results:['Game results','Inspect ranked attempts and their server-verified outcomes.'],reviews:['Review queue','Track follow-ups on individual puzzle attempts.'],competitors:['Competitors','Public store figures and results features from comparable puzzle games.'],sources:['Data sources','Game data available to your Studio account.']};
+const labels = {overview:['Game overview','Ranked play across Campaign, Daily Bento and Neko Tower.'],results:['Game results','Inspect ranked attempts and their server-verified outcomes.'],reviews:['Review queue','Track follow-ups on individual puzzle attempts.'],sources:['Data sources','Game data available to your Studio account.']};
 export const pageTitle = key => labels[key][0];
 
 export function select(label, action, options, current, symbol = '') {
@@ -76,7 +76,7 @@ function activity(trend) {
   for (const i of ticks) lines += '<text x="' + x(i) + '" y="' + (height-7) + '" text-anchor="' + (i === 0 ? 'start' : i === trend.length-1 ? 'end' : 'middle') + '">' + dateText(trend[i].date) + '</text>';
   const dots = covered.map((p,i) => '<circle cx="' + p.x + '" cy="' + y(p.verified) + '" r="' + (i === covered.length-1 ? 4 : 2.7) + '" fill="#814864" stroke="#fff" stroke-width="1.5"><title>' + dateText(p.date) + ' · ' + p.verified + ' verified of ' + p.attempts + '</title></circle>').join('');
   const tabular = trend.map(p => '<tr><td>' + dateText(p.date) + '</td><td>' + (p.covered ? p.attempts : '—') + '</td><td>' + (p.covered ? p.verified : '—') + '</td></tr>').join('');
-  return '<section class="card activity"><div class="card-heading"><div><h2>Attempt activity</h2><p>Grouped by start date · UTC</p></div><div class="legend"><span><i class="dash-line"></i>Started</span><span><i class="solid-line"></i>Verified</span></div></div>' +
+  return '<section class="card activity"><div class="card-heading"><div><h2>Attempt activity</h2><p>Grouped by local start date · '+escapeText(zoneLabel())+'</p></div><div class="legend"><span><i class="dash-line"></i>Started</span><span><i class="solid-line"></i>Verified</span></div></div>' +
     '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Trend of attempts started and verified. Daily counts follow in the data table."><defs><linearGradient id="chart-shade" x1="0" x2="0" y1="0" y2="1" gradientUnits="objectBoundingBox"><stop stop-color="#c79bad" stop-opacity=".42"/><stop offset="1" stop-color="#c79bad" stop-opacity=".06"/></linearGradient></defs>' + lines + '<path d="' + area + '" fill="url(#chart-shade)"/><path d="' + started + '" fill="none" stroke="#82a99d" stroke-width="2.4" stroke-dasharray="5 5"/><path d="' + verified + '" fill="none" stroke="#824867" stroke-width="3"/>' + dots + '</svg>' +
     '<details class="chart-data"><summary>Daily counts</summary><table><thead><tr><th>Date</th><th>Started</th><th>Verified</th></tr></thead><tbody>' + tabular + '</tbody></table></details></section>';
 }
@@ -107,14 +107,14 @@ export function resultTable(rows, reviews, reviewMode = false) {
     const review = reviews[row.id];
     const status = review ? '<span class="review-pill ' + review.state + '">' + REVIEW_STATES[review.state] + '</span>' : '<span class="quiet">—</span>';
     const title = escapeText(puzzleName(row.puzzle));
-    return '<tr><td><button data-id="' + row.id + '" class="row-title" aria-label="Inspect ' + title + '"><span class="row-icon ' + row.mode + '">' + icon(row.mode) + '</span><span><b>' + title + '</b><small>' + (row.difficulty ? cap(row.difficulty) + ' · ' : '') + row.grid + ' × ' + row.grid + '</small></span></button></td><td>' + MODES[row.mode] + '</td><td>' + outcomeBadge(row.outcome) + '</td><td class="tabular">' + formatTime(row.seconds) + '</td><td>' + (reviewMode ? status : dateText(row.started,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})) + '</td><td><button class="row-open" data-id="' + row.id + '" aria-label="Open attempt ' + row.id.slice(-8) + '">' + icon('chevron') + '</button></td></tr>';
+    return '<tr><td><button data-id="' + row.id + '" class="row-title" aria-label="Inspect ' + title + '"><span class="row-icon ' + row.mode + '">' + icon(row.mode) + '</span><span><b>' + title + '</b><small>' + (row.difficulty ? cap(row.difficulty) + ' · ' : '') + row.grid + ' × ' + row.grid + '</small></span></button></td><td>' + MODES[row.mode] + '</td><td>' + outcomeBadge(row.outcome) + '</td><td class="tabular">' + formatTime(row.seconds) + '</td><td>' + (reviewMode ? status : localDateTime(row.started)) + '</td><td><button class="row-open" data-id="' + row.id + '" aria-label="Open attempt ' + row.id.slice(-8) + '">' + icon('chevron') + '</button></td></tr>';
   }).join('');
-  return '<div class="table-scroll"><table class="results-table"><thead><tr><th>Puzzle</th><th>Mode</th><th>Outcome</th><th>Solve time</th><th>' + (reviewMode ? 'Review' : 'Started (UTC)') + '</th><th><span class="sr">Inspect</span></th></tr></thead><tbody>' + body + '</tbody></table></div>';
+  return '<div class="table-scroll"><table class="results-table"><thead><tr><th>Puzzle</th><th>Mode</th><th>Outcome</th><th>Solve time</th><th>' + (reviewMode ? 'Review' : 'Started') + '</th><th><span class="sr">Inspect</span></th></tr></thead><tbody>' + body + '</tbody></table></div>';
 }
 
 export function overview(dataset, period, state) {
   const now = metrics(period.rows);
-  const prev = period.hasHistory ? metrics(period.priorRows, dataset.asOf - state.days * DAY) : {};
+  const prev = period.hasHistory ? metrics(period.priorRows, period.previousEnd) : {};
   const compare = 'vs prior ' + state.days + ' days';
   const coverage = period.partial ? '<p class="coverage-line">' + icon('info') + 'Coverage starts ' + dateText(dataset.start) + '. Earlier dates are unavailable.</p>' : '';
   return heading('overview', dateSelect(state.days) + exportButton) + coverage +
@@ -126,24 +126,26 @@ export function overview(dataset, period, state) {
     '<section class="card recent"><div class="card-heading"><div><h2>Recent attempts</h2><p>Latest ranked starts in this period</p></div>' + textLink('#results','View all') + '</div>' + resultTable(period.rows.slice(0,5),state.reviews) + '</section>';
 }
 
-export function resultsPanel(filtered, state, reviewMode) {
-  const pages = Math.max(1,Math.ceil(filtered.length / 12));
+export function resultsPanel(filtered, state, reviewMode, serverTotal) {
+  const total=serverTotal ?? filtered.length;
+  const pages = Math.max(1,Math.ceil(total / 12));
   const page = Math.max(1,Math.min(state.page,pages));
   const start = (page-1)*12;
-  return '<div class="card-heading"><div><h2>' + (reviewMode ? 'Reviewed attempts' : 'Ranked attempts') + '</h2><p>' + num(filtered.length) + ' matching ' + (filtered.length === 1 ? 'attempt' : 'attempts') + '</p></div></div>' +
-    resultTable(filtered.slice(start,start+12),state.reviews,reviewMode) + '<div class="pagination"><span>' +
-    (filtered.length ? num(start+1) + '–' + num(Math.min(start+12,filtered.length)) + ' of ' + num(filtered.length) : '0 attempts') + '</span><div><button class="button small" data-action="prev"' + (page===1?' disabled':'') + '>Previous</button><button class="button small" data-action="next"' + (page===pages?' disabled':'') + '>Next</button></div></div>';
+  return '<div class="card-heading"><div><h2>' + (reviewMode ? 'Reviewed attempts' : 'Ranked attempts') + '</h2><p>' + num(total) + ' matching ' + (total === 1 ? 'attempt' : 'attempts') + '</p></div></div>' +
+    resultTable(serverTotal==null?filtered.slice(start,start+12):filtered,state.reviews,reviewMode) + '<div class="pagination"><span>' +
+    (total ? num(start+1) + '–' + num(Math.min(start+12,total)) + ' of ' + num(total) : '0 attempts') + '</span><div><button class="button small" data-action="prev"' + (page===1?' disabled':'') + '>Previous</button><button class="button small" data-action="next"' + (page===pages?' disabled':'') + '>Next</button></div></div>';
 }
 
-export function listView(filtered, state, reviewMode) {
+export function listView(filtered, state, reviewMode, queuePanel) {
   const f = state.filters;
   const controls = reviewMode ? exportButton : dateSelect(state.days) + exportButton;
   const reviewFilter = reviewMode ? select('Review state','review',{flagged:'Needs review',resolved:'Resolved',all:'All reviews'},f.review) : '';
-  return heading(reviewMode?'reviews':'results', controls) + (reviewMode ? '<p class="scope-note">' + icon('info') + 'Reviews cover the full loaded snapshot. ' + 'Notes are shared with the Studio operators.' + '</p>' : '') +
+  const scope=queuePanel!==undefined?'Reviews cover all dates.':'Reviews cover the loaded reporting window.';
+  return heading(reviewMode?'reviews':'results', controls) + (reviewMode ? '<p class="scope-note">' + icon('info') + scope + ' Notes are shared with Studio operators.</p>' : '') +
     '<div class="toolbar"><label class="search">' + icon('search') + '<input id="find-results" type="search" maxlength="150" placeholder="Search puzzle or attempt" aria-label="Search puzzle or attempt" value="' + escapeText(f.search) + '"></label>' +
       modeSelect(state.mode) + select('Attempt outcome','outcome',{all:'All outcomes',...OUTCOMES},f.outcome) +
       select('Daily difficulty','difficulty',{all:'All difficulties',easy:'Easy',medium:'Medium',hard:'Hard'},f.difficulty) + reviewFilter + '</div>' +
-    '<section class="card list-panel" id="list-panel">' + resultsPanel(filtered,state,reviewMode) + '</section>';
+    '<section class="card list-panel" id="list-panel">' + (queuePanel ?? resultsPanel(filtered,state,reviewMode)) + '</section>';
 }
 
 export function details(row, review) {

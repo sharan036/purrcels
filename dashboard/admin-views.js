@@ -1,10 +1,7 @@
-import {escapeText as e,num} from './views.js?v=3';
-import {icon} from './icons.js?v=3';
-const when=value=>{
-  if(!value) return '—';
-  const date=new Date(value);
-  return Number.isFinite(date.valueOf()) ? date.toISOString().slice(0,16).replace('T',' ')+' UTC' : '—';
-};
+import {escapeText as e,num} from './views.js?v=4';
+import {icon} from './icons.js?v=4';
+import {MODES} from './model.js?v=4';
+import {localDateTime as when, zoneLabel} from './time.js?v=4';
 const displayName=u=>u.name||u.profile?.display_name||u.identity?.name||'Player';
 function valueText(key,value) {
   if(value==null||value==='') return '—';
@@ -49,9 +46,9 @@ export function moderationCounts(data) {
   return '<div class="admin-metrics">'+[['Active bans',data.stats.banned],['Flagged attempts',data.stats.flagged]].map(([k,v])=>
     '<article class="card admin-metric"><div><span>'+k+'</span><strong>'+num(v)+'</strong></div></article>').join('')+'</div>';
 }
-export function trendView(daily) {
+export function trendView(daily,zone='UTC') {
   const max=Math.max(1,...daily.map(d=>d.players));
-  return card('Daily ranked players','<p class="admin-muted">Unique players who started a ranked puzzle · 14 UTC dates</p><div class="admin-bars">'+daily.map(d=>
+  return card('Daily ranked players','<p class="admin-muted">Unique players who started a ranked puzzle · 14 dates · '+e(zoneLabel(Date.now(),zone))+'</p><div class="admin-bars">'+daily.map(d=>
     '<div title="'+e(d.day)+' · '+num(d.players)+' players"><b>'+num(d.players)+'</b><i style="height:'+Math.round(d.players/max*64)+'px"></i><small>'+e(d.day.slice(8))+'</small></div>').join('')+'</div>');
 }
 export function pager(action,n,more) {
@@ -89,7 +86,7 @@ export function identityView(user) {
 export function detailView(data,identity) {
   const m=data.moderation,c=data.counts;
   return btn('back','← Back to '+(data.fromAudit?'moderation':'players'),'admin-back')+
-    '<header class="admin-profile-head"><div><h1 id="admin-player-name">'+e(displayName(data))+'</h1><p class="admin-uid">'+e(data.uid)+'</p></div>'+stateTag(m.active)+'</header>'+
+    '<header class="admin-profile-head"><div><h1 id="admin-player-name">'+e(displayName(data))+'</h1><p class="admin-uid">'+e(data.uid)+'</p></div><div class="admin-form-actions">'+stateTag(m.active)+btn('refresh-player','Refresh player')+'</div></header>'+
     '<div class="admin-metrics">'+[['Ranked attempts',c.starts],['Verified solves',c.verified],['Synced puzzles',c.progress],['Ranked bests',c.bests]].map(([k,v])=>'<article class="card admin-metric"><div><span>'+k+'</span><strong>'+num(v)+'</strong></div></article>').join('')+'</div>'+
     '<div class="admin-detail-grid">'+facts('Game profile',data.profile,'No synced game profile.')+card('Firebase sign-in','<div id="admin-identity" aria-live="polite">'+identityView(identity)+'</div>')+
     card('Game activity',pairs({'Last ranked start':when(c.lastRanked),'Fastest verified solve':c.fastest==null?null:num(c.fastest)+' s','Recorded purchases':c.purchases,'Rewarded ads credited':c.ads}))+
@@ -101,7 +98,12 @@ export function detailView(data,identity) {
 }
 export function historyView(result) {
   const keys=Object.keys(result.items[0]||{});
-  return (keys.length?table(keys.map(k=>labels[k]||k),result.items.map(row=>'<tr>'+keys.map(k=>'<td>'+e(valueText(k,row[k]))+'</td>').join('')+'</tr>').join('')):'<p class="admin-empty">No records in this section.</p>')+pager('history',result.offset,result.hasMore);
+  function value(row,key) {
+    if(key!=='mode') return valueText(key,row[key]);
+    const mode=row.mode==='campaign' && row.puzzle_id?.startsWith('tower_')?'tower':row.mode;
+    return Object.hasOwn(MODES,mode)?MODES[mode]:valueText(key,mode);
+  }
+  return (keys.length?table(keys.map(k=>labels[k]||k),result.items.map(row=>'<tr>'+keys.map(k=>'<td>'+e(value(row,k))+'</td>').join('')+'</tr>').join('')):'<p class="admin-empty">No records in this section.</p>')+pager('history',result.offset,result.hasMore);
 }
 export function decisionForm(data) {
   const ban=!data.moderation.active;
