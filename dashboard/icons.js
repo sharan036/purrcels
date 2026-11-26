@@ -1,4 +1,5 @@
 const paths = {
+  players:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m0-15a3 3 0 0 1 0 6m2 3c3 0 4 2 4 5"/>',
   overview:'<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
   results:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18m-12 4h1m4 0h3m-8 4h1m4 0h3"/>',
   flag:'<path d="M5 21V4c3-2 5-2 7 0s5 2 8 0v10c-3 2-6 2-8 0s-4-2-7 0"/>',

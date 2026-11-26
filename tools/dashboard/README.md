@@ -20,3 +20,11 @@ An eight-hour session uses a host-only HTTP-only cookie on the game API. Sign ou
 The website serves static HTML and JavaScript. No credentials or results are bundled in it. The game repository contains the [deployment and account guide](https://github.com/sharan036/Purrcels-Cat-Logic-Puzzle/blob/main/backend/STUDIO.md). The SQL file beside this guide remains available to administrators for a standalone read-only export.
 
 Run website checks from the checkout with `node --test tests/*.test.cjs tests/*.test.mjs`. The game backend repository tests the HTTP and PostgreSQL integration on a disposable database.
+
+## Superadmin workspace
+
+After the game administrator grants the superadmin role, sign in again with the existing Studio password. **Players** includes a searchable game directory and a paginated Firebase account directory. Open a player to view their profile, sign-in and token-refresh times, progress, results, wallet ledger, shop purchases, ad rewards, latest integrity check and moderation history. **View player** in a ranked result opens the same record. The dashboard reads each history 25 records at a time. Missing Firebase data is labelled separately.
+
+The overview includes player metrics. **Players** adds unique ranked players for 24 hours, 7 days and 28 days, a 14-day UTC trend, new profiles, premium ownership and active purchase holders. A ranked player has started a ranked attempt in the specified period.
+
+Choose **Ban player** on the player record to suspend online access for 24 hours, 7 days, 30 days or until reinstated. Give a reason and confirm. **Moderation** shows the operator, reason, decision time and expiry. Reinstatement also requires a reason and retains the original scores and audit history. The game API enforces active bans and filters public ranked and historical scoreboards. The [game server guide](https://github.com/sharan036/Purrcels-Cat-Logic-Puzzle/blob/main/backend/STUDIO.md) includes role activation and demotion.

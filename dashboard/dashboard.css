@@ -209,3 +209,61 @@ noscript p {position:fixed; bottom:12px; inset-inline:12px; text-align:center; b
   .account-controls {gap:5px}
   .refresh-source {margin-left:0}
 }
+
+/* Player administration */
+.admin-role,.player-status {display:inline-flex;align-items:center;gap:5px;border-radius:99px;font-size:11px;font-weight:750;padding:4px 9px;white-space:nowrap}
+.admin-role {color:var(--plum);background:var(--active)}
+.player-status {color:#2c604a;background:#e5f1e9}
+.player-status.suspended {color:#912d40;background:#fce8ea}
+.admin-stats,.admin-card {margin:17px 0}
+.admin-section-head,.admin-profile-head,.admin-form-actions,.admin-source-tabs,.admin-pager,.admin-tools {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.admin-section-head,.admin-profile-head {justify-content:space-between}
+.admin-section-head {margin:0 0 10px}
+.admin-section-head>span,.admin-muted,.admin-empty,.admin-uid,.admin-pager span {font-size:12px;color:var(--muted)}
+.admin-metrics {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.admin-metric {padding:15px;display:flex;align-items:center;gap:11px}
+.admin-metric>div {min-width:0}
+.admin-metric>div>span {display:block;font-size:11px;color:var(--muted);font-weight:650}
+.admin-metric strong {display:block;font-size:25px;letter-spacing:-.04em}
+.admin-metric .kpi-icon {color:var(--berry);background:var(--active);flex:none}
+.admin-card {padding:20px;min-width:0}
+.admin-card>h2 {margin-bottom:10px}
+.admin-card p {overflow-wrap:anywhere}
+.admin-source-tabs {gap:4px;margin:15px 0}
+.admin-source-tabs .button[aria-pressed="true"] {color:var(--plum);background:var(--active);border-color:#d3bbc9}
+.admin-tools,.moderation-form {margin:15px 0}
+.admin-tools {align-items:end}
+.admin-tools label,.moderation-form label {display:grid;gap:5px;min-width:0;font-size:12px;font-weight:680}
+.admin-tools input,.admin-tools select,.admin-history-label select,.moderation-form textarea,.moderation-form select {
+  max-width:100%;min-height:38px;padding:7px 10px;background:white;border:1px solid #d6cbd0;border-radius:7px;font:inherit
+}
+.admin-tools input {width:min(270px,100%)}
+.admin-history-label {display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px}
+.admin-pager {justify-content:flex-end;margin-top:13px}
+.admin-table {min-width:560px}
+.admin-table td {max-width:320px;overflow-wrap:anywhere}
+.admin-empty,.admin-muted {padding:6px 0}
+.player-link {display:grid;text-align:left;max-width:100%;padding:4px 0;min-height:34px}
+.player-link b {color:var(--berry);font-weight:750}.player-link:hover b {text-decoration:underline}
+.player-link small,.admin-uid {font-size:11px;word-break:break-all;white-space:normal}
+.admin-profile-head {margin:14px 0 20px;justify-content:flex-start}
+.admin-profile-head h1 {overflow-wrap:anywhere}
+.admin-detail-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}
+.admin-detail-grid .admin-card {margin:0}
+.admin-facts {margin:0}
+.admin-facts>div {display:grid;grid-template-columns:minmax(90px,.9fr) minmax(0,1.2fr);gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px}
+.admin-facts dt {color:var(--muted)}
+.admin-facts dd {margin:0;overflow-wrap:anywhere}
+.admin-facts>div:last-child {border-bottom:none}
+.admin-access {display:grid;gap:9px;justify-items:start}
+.moderation-form {padding:13px;border:1px solid #e1c8ce;border-radius:9px;background:#fffafa}
+.moderation-form p,.moderation-form label {margin:8px 0}
+.moderation-form textarea {resize:vertical}
+.button.danger-outline {border-color:#d6a8ae;color:#84293b}
+.button.danger {background:#8c3044;color:white;border-color:#8c3044}
+.admin-bars {display:flex;align-items:flex-end;gap:7px;min-height:110px;margin-top:8px}
+.admin-bars>div {flex:1;min-width:0;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.admin-bars b,.admin-bars small {font-size:10px;color:var(--muted)}
+.admin-bars i {display:block;width:min(24px,75%);background:#8a536e;border-radius:3px 3px 0 0;border-bottom:1px solid #8a536e;margin:4px 0}
+@media(max-width:800px) {.admin-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-role{display:none}}
+@media(max-width:600px) {.admin-detail-grid{grid-template-columns:1fr}.admin-card{padding:14px}.admin-metrics{gap:7px}.admin-metric{padding:10px;gap:6px}.admin-tools input{width:100%}.admin-bars{gap:2px}.admin-metric .kpi-icon{display:none}}
