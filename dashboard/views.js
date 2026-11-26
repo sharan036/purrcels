@@ -7,7 +7,7 @@ export const dateText = (n, opts = {month:'short', day:'numeric'}) => new Intl.D
 const dateTime = n => dateText(n, {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}) + ' UTC';
 const cap = text => text ? text[0].toUpperCase() + text.slice(1) : '';
 const modeColor = {campaign:'#824867',daily:'#80a999',tower:'#e3a36e'};
-const labels = {overview:['Game overview','Ranked play across Campaign, Daily Bento and Neko Tower.'],results:['Game results','Inspect ranked attempts and their server-verified outcomes.'],reviews:['Review queue','Track follow-ups on individual puzzle attempts.'],competitors:['Competitors','Public store figures and results features from comparable puzzle games.'],sources:['Data sources','Choose the ranked results you want to work with.']};
+const labels = {overview:['Game overview','Ranked play across Campaign, Daily Bento and Neko Tower.'],results:['Game results','Inspect ranked attempts and their server-verified outcomes.'],reviews:['Review queue','Track follow-ups on individual puzzle attempts.'],competitors:['Competitors','Public store figures and results features from comparable puzzle games.'],sources:['Data sources','Game data available to your Studio account.']};
 export const pageTitle = key => labels[key][0];
 
 export function select(label, action, options, current, symbol = '') {
@@ -139,19 +139,19 @@ export function listView(filtered, state, reviewMode) {
   const f = state.filters;
   const controls = reviewMode ? exportButton : dateSelect(state.days) + exportButton;
   const reviewFilter = reviewMode ? select('Review state','review',{flagged:'Needs review',resolved:'Resolved',all:'All reviews'},f.review) : '';
-  return heading(reviewMode?'reviews':'results', controls) + (reviewMode ? '<p class="scope-note">' + icon('info') + 'Reviews cover the full loaded snapshot. ' + (state.source==='operator'?'Notes are saved on the operator host.':'Notes are saved in this browser.') + '</p>' : '') +
+  return heading(reviewMode?'reviews':'results', controls) + (reviewMode ? '<p class="scope-note">' + icon('info') + 'Reviews cover the full loaded snapshot. ' + 'Notes are shared with the Studio operators.' + '</p>' : '') +
     '<div class="toolbar"><label class="search">' + icon('search') + '<input id="find-results" type="search" maxlength="150" placeholder="Search puzzle or attempt" aria-label="Search puzzle or attempt" value="' + escapeText(f.search) + '"></label>' +
       modeSelect(state.mode) + select('Attempt outcome','outcome',{all:'All outcomes',...OUTCOMES},f.outcome) +
       select('Daily difficulty','difficulty',{all:'All difficulties',easy:'Easy',medium:'Medium',hard:'Hard'},f.difficulty) + reviewFilter + '</div>' +
     '<section class="card list-panel" id="list-panel">' + resultsPanel(filtered,state,reviewMode) + '</section>';
 }
 
-export function details(row, review, source) {
+export function details(row, review) {
   const values = [['Mode',MODES[row.mode]],['Grid',row.grid + ' × ' + row.grid],['Started',dateTime(row.started)],['Completed',row.completed!==null ? dateTime(row.completed) : '—'],
     ['Solve time',formatTime(row.seconds)],['Mistakes',row.mistakes ?? '—'],['Stars',row.stars === null ? '—' : row.stars + ' / 3'],['Daily difficulty',row.difficulty ? cap(row.difficulty) : '—']];
   return '<div class="detail-head"><span class="kpi-icon lilac">' + icon(row.mode) + '</span><button class="square" data-action="close" aria-label="Close attempt">' + icon('close') + '</button></div><h2 id="detail-name">' + escapeText(puzzleName(row.puzzle)) + '</h2><p class="detail-id">Attempt ' + row.id + '</p>' + outcomeBadge(row.outcome) +
     '<dl class="detail-grid">' + values.map(([key,v]) => '<div><dt>' + key + '</dt><dd>' + v + '</dd></div>').join('') + '</dl><div class="review-heading"><h3>Operator review</h3>' +
-    (review ? '<span class="review-pill ' + review.state + '">' + REVIEW_STATES[review.state] + '</span>' : '') + '</div><p class="field-help">' + (source==='operator'?'Stored on the operator host.':'Stored in this browser.') + ' Reviews leave the verified score intact.</p><label class="note-label" for="review-note">Review note</label><textarea id="review-note" rows="3" maxlength="600" placeholder="What should be checked?">' + escapeText(review?.note || '') + '</textarea><p id="review-error" class="field-error" role="alert"></p>' +
+    (review ? '<span class="review-pill ' + review.state + '">' + REVIEW_STATES[review.state] + '</span>' : '') + '</div><p class="field-help">' + (review?.reviewedBy ? 'Last saved by ' + escapeText(review.reviewedBy) + ' · ' + dateTime(Date.parse(review.updatedAt)) + '.' : 'Saved to the game server.') + ' Reviews leave the verified score intact.</p><label class="note-label" for="review-note">Review note</label><textarea id="review-note" rows="3" maxlength="600" placeholder="What should be checked?">' + escapeText(review?.note || '') + '</textarea><p id="review-error" class="field-error" role="alert"></p>' +
     '<div class="detail-actions">' + (review ? '<button class="button" data-review="' + review.state + '">Save note</button>' : '') +
     '<button class="button primary" data-review="' + (review?.state==='flagged'?'resolved':'flagged') + '">' +
     icon(review?.state==='flagged'?'check':'flag') + (review?.state==='flagged'?'Resolve review':review?'Reopen review':'Flag for review') + '</button></div>';

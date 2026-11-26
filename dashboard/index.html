@@ -3,18 +3,34 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="purrcels-runtime" content="static">
   <meta name="theme-color" content="#51283c">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex,nofollow">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Overview · Purrcels Studio</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self'; connect-src https://purrcels-api.devinnovations.co.in; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Operator sign-in · Purrcels Studio</title>
   <link rel="icon" href="../assets/favicon.png">
   <link rel="preload" href="./fonts/plus-jakarta-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="./dashboard.css">
-  <script type="module" src="./app.js"></script>
+  <link rel="stylesheet" href="./dashboard.css?v=2">
+  <script type="module" src="./app.js?v=2"></script>
 </head>
 <body>
+  <main id="login-screen" class="login-screen">
+    <div class="login-panel">
+      <section class="login-brand" aria-label="Purrcels Studio"><div class="login-wordmark"><img src="../assets/app-mark.webp" width="52" height="37" alt=""><span>Purrcels <b>Studio</b></span></div><div class="login-art" aria-hidden="true"><div class="login-tiles"><i></i><i></i><i></i><i></i><i><img src="../assets/cat.webp" alt=""></i><i></i><i></i><i></i><i></i></div></div><p>Cat Logic Puzzle</p></section>
+      <section class="login-body" aria-labelledby="login-title">
+        <h1 id="login-title">Operator sign-in</h1><p>Sign in to see game results and manage reviews.</p>
+        <form id="login-form" method="post" autocomplete="on">
+          <label for="username">Username</label><input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="64" required>
+          <label for="password">Password</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" required><button type="button" id="show-password" aria-label="Show password" aria-pressed="false">Show</button></div>
+          <button class="button primary" id="sign-in" type="submit" disabled>Sign in</button>
+        </form>
+        <p id="login-status" class="login-status" role="status" aria-live="polite">Connecting to the game server…</p>
+        <button type="button" class="text-link" id="retry-login" hidden>Retry connection</button>
+        <a href="../" class="back-game">Back to Purrcels</a>
+      </section>
+    </div>
+  </main>
+  <div id="studio-shell" hidden>
   <a href="#content" class="skip">Skip to dashboard</a>
   <aside class="sidebar" id="sidebar" aria-label="Studio navigation">
     <div class="brand-wrap"><a class="brand" href="#overview" aria-label="Purrcels Studio overview"><img src="../assets/app-mark.webp" alt="" width="47" height="34"><span>Purrcels<span class="studio">Studio</span></span></a><button id="close-nav" class="square mobile-only" aria-label="Close navigation" data-icon="close"></button></div>
@@ -32,12 +48,13 @@
   </aside>
   <button id="nav-scrim" hidden aria-label="Close navigation"></button>
   <div class="workspace">
-    <header class="topbar"><div class="crumb"><button id="open-nav" class="square mobile-only" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" data-icon="menu"></button><i data-icon="panel"></i><span>Studio</span><i data-icon="chevron"></i><strong id="crumb">Overview</strong></div><a href="#sources" class="source-chip" id="source-chip"><span class="source-dot"></span><span id="source-label">Data source</span></a></header>
+    <header class="topbar"><div class="crumb"><button id="open-nav" class="square mobile-only" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar" data-icon="menu"></button><i data-icon="panel"></i><span>Studio</span><i data-icon="chevron"></i><strong id="crumb">Overview</strong></div><div class="account-controls"><a href="#sources" class="source-chip" id="source-chip"><span class="source-dot"></span><span id="source-label">Game server</span></a><button class="button" id="sign-out">Sign out</button></div></header>
     <main id="content" tabindex="-1"><p class="loading">Loading workspace…</p></main>
-    <noscript><p>This dashboard needs JavaScript to display results and review notes.</p></noscript>
+
   </div>
   <dialog id="record-dialog" aria-labelledby="detail-name"><div id="detail"></div></dialog>
-  <input type="file" accept=".json,application/json" id="import-file" hidden>
+  </div>
+  <noscript><p>Enable JavaScript to sign in to Purrcels Studio.</p></noscript>
   <div id="notice" role="status" aria-live="polite"></div>
 </body>
 </html>
