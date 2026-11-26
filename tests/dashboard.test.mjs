@@ -1,12 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {once} from 'node:events';
-import {mkdtemp, rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
-import {join} from 'node:path';
-import {readSnapshot, selectPeriod, metrics, resultsCsv, filterResults, formatTime, DAY} from '../dashboard/model.js';
-import {sampleSnapshot, sampleReviews} from '../dashboard/sample.js';
-import {operatorServer} from '../tools/dashboard/serve.mjs';
+import {readFile} from 'node:fs/promises';
+import {readSnapshot, selectPeriod, metrics, resultsCsv, filterResults, formatTime, DAY, cleanReview} from '../dashboard/model.js';
+import {request} from '../dashboard/session.js';
+import {details, overview} from '../dashboard/views.js';
+import {dataSources, competitors} from '../dashboard/resources.js';
 
 const at = '2026-11-25T12:00:00Z', asOf = Date.parse(at);
 function attempt(n, relative, seconds = 10) {
@@ -67,60 +65,48 @@ test('search and daily difficulty apply together; only filtered rows and safely 
   assert.match(csv,/'=A1,""test""\nnext/); assert.ok(!csv.includes(b.id));
   assert.match(csv,/flagged/);
 });
-test('sample history spans both comparison windows and includes reviewable starts in all three modes', () => {
-  const d=readSnapshot(sampleSnapshot()), p=selectPeriod(d,28);
-  assert.equal(p.hasHistory,true); assert.equal(p.trend.length,28);
-  assert.deepEqual(new Set(d.rows.map(r=>r.mode)),new Set(['daily','tower','campaign']));
-  assert.equal(Object.keys(sampleReviews(d)).length,3);
-  assert.equal(p.trend.reduce((sum,r)=>sum+r.attempts,0),p.rows.length);
+test('the first page offers operator login and exposes an empty, hidden workspace', async () => {
+  const html=await readFile(new URL('../dashboard/index.html',import.meta.url),'utf8');
+  assert.match(html,/<div id="studio-shell" hidden>/);
+  assert.match(html,/type="password" autocomplete="current-password"/);
+  assert.match(html,/id="sign-in" type="submit" disabled/);
+  assert.doesNotMatch(html,/sample\.js|type="file"/);
+  assert.match(html,/connect-src https:\/\/purrcels-api\.devinnovations\.co\.in;/);
 });
-
-async function openServer(t,loadSnapshot,dir) {
-  const server=operatorServer({loadSnapshot,directory:dir});
-  server.listen(0,'127.0.0.1'); await once(server,'listening');
-  t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
-  const origin='http://127.0.0.1:'+server.address().port;
-  const record=(id,body,source=origin) => fetch(origin+'/dashboard/api/reviews/'+id,{method:'POST',
-    headers:{Origin:source,'Content-Type':'application/json'},body:JSON.stringify(body)});
-  return {origin,record,workspace:()=>fetch(origin+'/dashboard/api/workspace')};
-}
-test('operator serves only approved assets, selects the live runtime and exposes its current snapshot', async t => {
-  const dir=await mkdtemp(join(tmpdir(),'purrcels-tests-')); t.after(()=>rm(dir,{recursive:true,force:true}));
-  const api=await openServer(t,async()=>equalData,dir);
-  assert.match(await (await fetch(api.origin+'/dashboard/')).text(),/name="purrcels-runtime" content="operator"/);
-  for (const path of ['app.js','model.js','resources.js','views.js','icons.js','sample.js','dashboard.css','fonts/plus-jakarta-sans.woff2']) {
-    assert.equal((await fetch(api.origin+'/dashboard/'+path)).status,200,path);
-  }
-  assert.equal((await fetch(api.origin+'/tools/dashboard/README.md')).status,404);
-  const value=await (await api.workspace()).json();
-  assert.deepEqual(value.snapshot,equalData); assert.deepEqual(value.reviews,{});
+test('the browser client uses the game API and its server-managed session for reads and writes', async () => {
+  const transport=async(url,opts)=>{
+    assert.equal(opts.credentials,'include'); assert.equal(opts.mode,'cors');
+    assert.equal(opts.cache,'no-store'); assert.equal(opts.redirect,'error');
+    assert.equal(new URL(url).origin,'https://purrcels-api.devinnovations.co.in');
+    if(url.endsWith('/login')){
+      assert.equal(opts.method,'POST'); assert.equal(opts.headers['Content-Type'],'application/json');
+      assert.equal(JSON.parse(opts.body).username,'test-reader');
+      return Response.json({authenticated:true,username:'test-reader'});
+    }
+    assert.equal(url.endsWith('/session'),true); assert.equal(opts.body,undefined);
+    return Response.json({authenticated:false});
+  };
+  assert.deepEqual(await request('session',undefined,transport),{authenticated:false});
+  assert.equal((await request('login',{username:'test-reader'},transport)).username,'test-reader');
 });
-test('review revisions survive restart, reject simultaneous stale edits and preserve verified scores', async t => {
-  const dir=await mkdtemp(join(tmpdir(),'purrcels-tests-')); t.after(()=>rm(dir,{recursive:true,force:true}));
-  const a=await openServer(t,async()=>equalData,dir), b=await openServer(t,async()=>equalData,dir);
-  await a.workspace(); await b.workspace();
-  const id=equalData.attempts[0].id;
-  const body={state:'flagged',note:'Check run',expectedRevision:0};
-  const pair=await Promise.all([a.record(id,body),b.record(id,body)]);
-  assert.deepEqual(pair.map(r=>r.status).sort(),[200,409]);
-  assert.equal((await a.record(id,{state:'resolved',note:'Checked',expectedRevision:1})).status,200);
-  const restarted=await openServer(t,async()=>equalData,dir);
-  const data=await (await restarted.workspace()).json();
-  assert.equal(data.reviews[id].state,'resolved'); assert.equal(data.reviews[id].revision,2);
-  assert.equal((await restarted.record(id,{...body,expectedRevision:2})).status,200);
-  assert.deepEqual(data.snapshot,equalData);
+test('network, authentication and malformed response failures stay distinguishable', async () => {
+  for (const [fetcher,status] of [
+    [async()=>{throw Error('offline');},0],
+    [async()=>Response.json({error:{message:'Sign in to Purrcels Studio.'}},{status:401}),401],
+    [async()=>new Response('unreadable',{status:200}),503],
+  ]) await assert.rejects(request('workspace',undefined,fetcher),err=>err.status===status);
 });
-test('a wrong origin, an unknown attempt and invalid notes cannot create review records', async t => {
-  const dir=await mkdtemp(join(tmpdir(),'purrcels-tests-')); t.after(()=>rm(dir,{recursive:true,force:true}));
-  const api=await openServer(t,async()=>equalData,dir); await api.workspace();
-  const id=equalData.attempts[0].id, body={state:'flagged',note:'Test note',expectedRevision:0};
-  assert.equal((await api.record(id,body,'https://example.org')).status,403);
-  assert.equal((await api.record('f'.repeat(24),body)).status,404);
-  assert.equal((await api.record(id,{...body,note:'x'.repeat(601)})).status,400);
-  assert.deepEqual((await (await api.workspace()).json()).reviews,{});
+test('an empty database and a failed read have distinct presentations', () => {
+  const dataset=readSnapshot(raw());
+  const empty=overview(dataset,selectPeriod(dataset,7),{reviews:{},days:7});
+  assert.match(empty,/No attempts in this view/);
+  assert.match(dataSources(dataset,{profiles:0,progress:0,bests:0},'studiouser'),/0 ranked starts/);
+  assert.match(dataSources(null,null,'studiouser'),/Awaiting ranked results/);
+  assert.match(competitors(),/Google Play/);
 });
-test('a failed database read returns an explicit unavailable response without a sample fallback', async t => {
-  const api=await openServer(t,async()=>{throw Error('fixture diagnostic');},tmpdir());
-  const res=await api.workspace();
-  assert.equal(res.status,503); assert.doesNotMatch(JSON.stringify(await res.json()),/fixture diagnostic|attempts/);
+test('review notes and recorded operator names are escaped for display', () => {
+  const row=readSnapshot(equalData).rows[0];
+  const view=details(row,cleanReview({state:'flagged',note:'<check>',reviewedBy:'staff & team',revision:2,updatedAt:at}));
+  assert.match(view,/&lt;check&gt;/); assert.match(view,/Last saved by staff &amp; team/);
+  assert.doesNotMatch(view,/<check>/);
 });

@@ -114,7 +114,8 @@ export function cleanReview(value) {
       typeof value.note !== 'string' || value.note.length > MAX_NOTE ||
       !Number.isSafeInteger(value.revision) || value.revision < 1 ||
       !Number.isFinite(timestamp(value.updatedAt))) throw Error('Invalid review record.');
-  return {state: value.state, note: value.note, revision: value.revision, updatedAt: value.updatedAt};
+  return {state:value.state, note:value.note, revision:value.revision, updatedAt:value.updatedAt,
+    reviewedBy: typeof value.reviewedBy === 'string' ? value.reviewedBy : ''};
 }
 
 export function resultsCsv(rows, reviews) {

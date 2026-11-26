@@ -10,9 +10,9 @@ Run `node --test tests/puzzle.test.cjs` to check the puzzle rules and each board
 
 ## Studio dashboard
 
-Open [Purrcels Studio](./dashboard/) to explore ranked attempts, inspect verified solves, manage reviews, export a filtered CSV and compare public competitor data. The public page starts with labelled sample data. Import a local ranked snapshot or run the loopback operator service for real results.
+Sign in to [Purrcels Studio](./dashboard/) with an operator account to inspect ranked attempts, save review notes, export filtered results and compare public competitor figures. Studio reads the game’s existing Node.js and PostgreSQL backend. The public sign-in page contains no game records.
 
-See the [operator guide](./tools/dashboard/README.md) for PostgreSQL access, local review storage and snapshot export. Run `node --test tests/*.test.cjs tests/*.test.mjs` for the website and dashboard regression suite.
+The [operator guide](./tools/dashboard/README.md) covers account setup, live data and review handling. Run `node --test tests/*.test.cjs tests/*.test.mjs` for the website and dashboard regression suite.
 
 ## GitHub Pages
 
