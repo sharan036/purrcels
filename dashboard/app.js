@@ -1,15 +1,20 @@
 import {cleanReview, filterResults, ID_PATTERN, readSnapshot, resultsCsv, selectPeriod} from './model.js';
+import {createAdmin} from './admin.js?v=3';
 import {request} from './session.js';
-import {icon} from './icons.js';
-import {details, listView, overview, pageTitle, resultsPanel} from './views.js?v=2';
-import {competitors, dataSources} from './resources.js?v=2';
+import {icon} from './icons.js?v=3';
+import {details, listView, overview, pageTitle, resultsPanel} from './views.js?v=3';
+import {competitors, dataSources} from './resources.js?v=3';
 
 const $ = query => document.querySelector(query);
 const content = $('#content'), dialog = $('#record-dialog');
 const freshFilters = () => ({outcome:'all',difficulty:'all',review:'all',search:''});
-const viewNames = {overview:'Overview',results:'Game results',reviews:'Review queue',competitors:'Competitors',sources:'Data sources'};
+const viewNames = {overview:'Overview',results:'Game results',reviews:'Review queue',competitors:'Competitors',sources:'Data sources',players:'Players',moderation:'Moderation'};
 const state = {days:7,mode:'all',filters:freshFilters(),reviews:{},page:1};
-const viewFromHash = () => Object.hasOwn(viewNames,location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+const adminView = view => ['players','moderation'].includes(view);
+const viewFromHash = () => {
+  const view=location.hash.slice(1);
+  return Object.hasOwn(viewNames,view) && (!adminView(view)||identity?.role==='superadmin') ? view : 'overview';
+};
 const channel = typeof BroadcastChannel==='function' ? new BroadcastChannel('purrcels.studio.session') : null;
 const pendingKey = 'purrcels.studio.logout-pending';
 let identity=null, dataset=null, inventory=null, currentView='', activeId=null, openRevision=0;
@@ -17,6 +22,23 @@ let generation=0, listVersion=0, sessionTimer, noticeTimer, failure='', logoutPe
 try { logoutPending=sessionStorage.getItem(pendingKey)==='1'; } catch {}
 for (const node of document.querySelectorAll('[data-icon]')) node.innerHTML=icon(node.dataset.icon);
 
+async function adminRequest(path,body) {
+  if(identity?.role!=='superadmin') throw Error('Superadmin access required.');
+  const ticket=generation, username=identity.username;
+  try {
+    const result=await request('admin/'+path,{...body,expectedOperator:username});
+    if(ticket!==generation) throw Error('Session changed.');
+    if(result.operator!==username) {lock('Your account changed. Sign in again.',true);throw Error('Session changed.');}
+    return result;
+  } catch(err) {
+    if(ticket===generation && (err.status===401 || err.status===403)) lock('Your access changed. Sign in again.',true);
+    throw err;
+  }
+}
+const admin=createAdmin(content,adminRequest,notify);
+function roleUI(role) {
+  for(const node of document.querySelectorAll('[data-superadmin]')) node.hidden=role!=='superadmin';
+}
 function notify(message) {
   clearTimeout(noticeTimer);
   $('#notice').textContent=message; $('#notice').classList.add('visible');
@@ -34,6 +56,7 @@ function pending(value) {
 }
 function lock(message,enabled=false,retry=false) {
   generation++; listVersion++; clearTimeout(sessionTimer); clearTimeout(noticeTimer);
+  admin.reset(); roleUI(null);
   identity=null; dataset=null; inventory=null; failure=''; currentView=''; activeId=null;
   Object.assign(state,{days:7,mode:'all',filters:freshFilters(),reviews:{},page:1});
   if (dialog.open) dialog.close();
@@ -49,8 +72,9 @@ function activate(user) {
   if (typeof user.username!=='string' || !Number.isFinite(expiry) || expiry<=Date.now()) {
     lock('Your session has expired. Sign in again.',true); return;
   }
-  if (identity?.username!==user.username) lock('');
-  identity={username:user.username,expiresAt:expiry};
+  const role=user.role==='superadmin'?'superadmin':'operator';
+  if (identity?.username!==user.username || identity?.role!==role) lock('');
+  identity={username:user.username,expiresAt:expiry,role}; roleUI(role);
   clearTimeout(sessionTimer);
   sessionTimer=setTimeout(()=>lock('Your session has expired. Sign in again.',true),expiry-Date.now());
   $('#login-screen').hidden=true; $('#studio-shell').hidden=false; $('#password').value='';
@@ -138,7 +162,7 @@ function render() {
   if (!identity) return;
   const next=viewFromHash();
   if (next!==currentView) {
-    currentView=next; state.page=1; state.mode='all'; state.filters=freshFilters();
+    admin.leave(); currentView=next; state.page=1; state.mode='all'; state.filters=freshFilters();
     if (next==='reviews') state.filters.review='flagged';
   }
   document.title=viewNames[currentView]+' · Purrcels Studio'; $('#crumb').textContent=viewNames[currentView];
@@ -149,11 +173,16 @@ function render() {
   $('#source-chip').dataset.source=failure?'offline':'operator';
   const count=Object.values(state.reviews).filter(r=>r.state==='flagged').length;
   $('#queue-count').hidden=!count; $('#queue-count').textContent=count;
+  if (adminView(currentView)) {admin.show(currentView);return;}
   if (currentView==='competitors') content.innerHTML=competitors();
   else if (currentView==='sources') content.innerHTML=dataSources(dataset,inventory,identity.username);
   else if (!dataset) content.innerHTML='<h1>'+pageTitle(currentView)+'</h1><section class="card unavailable"><h2>'+(failure?'Game results unavailable':'Reading ranked attempts…')+'</h2>'+(failure?'<button class="button" data-action="live">Retry</button>':'')+'</section>';
   else if (currentView==='overview') content.innerHTML=overview(dataset,selectPeriod(dataset,state.days),state);
   else content.innerHTML=listView(currentRows(),state,currentView==='reviews');
+  if (identity.role==='superadmin' && currentView==='overview' && dataset) {
+    const target=document.createElement('div'); target.id='admin-stats';
+    content.querySelector('.analytics-row').before(target); admin.summary(target,true);
+  }
   if (failure && currentView!=='competitors') {
     const warning=document.createElement('p'); warning.className='scope-note warning';
     warning.textContent=failure+(dataset?' Showing the last successful refresh.':''); content.prepend(warning);
@@ -179,7 +208,18 @@ $('.skip').onclick = e => { e.preventDefault(); content.focus(); content.scrollI
 matchMedia('(min-width:761px)').addEventListener('change', e => { if (e.matches) toggleNav(false); });
 $('#open-nav').onclick = () => toggleNav(true);
 $('#nav-scrim').onclick = $('#close-nav').onclick = () => { toggleNav(false); $('#open-nav').focus(); };
-$('#sidebar').addEventListener('click', e => { if (e.target.closest('a')) toggleNav(false); });
+$('#sidebar').addEventListener('click', e => {
+  const link=e.target.closest('a');
+  if (!link) return;
+  toggleNav(false);
+  if (link.dataset.view===currentView && adminView(currentView) &&
+      !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey) {
+    e.preventDefault();
+    admin.directory();
+    window.scrollTo(0,0);
+    content.focus({preventScroll:true});
+  }
+});
 document.addEventListener('keydown', e => {
   if (!document.body.classList.contains('nav-open')) return;
   if (e.key === 'Escape') { toggleNav(false); $('#open-nav').focus(); }
@@ -194,6 +234,10 @@ function openDetail(id) {
   if (!row) return;
   activeId = id; openRevision = state.reviews[id]?.revision || 0;
   $('#detail').innerHTML = details(row,state.reviews[id]);
+  if (identity.role==='superadmin') {
+    const button=document.createElement('button');button.type='button';button.className='button';button.dataset.action='inspect-player';
+    button.textContent='View player';$('#detail .detail-actions').prepend(button);
+  }
   if (!dialog.open) dialog.showModal();
   dialog.querySelector('[data-action="close"]').focus();
 }
@@ -243,6 +287,15 @@ document.addEventListener('click',e=>{
   if (target.dataset.id) return openDetail(target.dataset.id);
   if (target.dataset.review) return saveReview(target.dataset.review);
   switch (target.dataset.action) {
+    case 'inspect-player': {
+      const row=dataset?.rows.find(r=>r.id===activeId);
+      if(!row || identity.role!=='superadmin') break;
+      const ticket=generation;target.disabled=true;
+      adminRequest('attempt-owner',{key:row.id,startedAt:new Date(row.started).toISOString()}).then(result=>{
+        if(ticket===generation && dialog.open && activeId===row.id){dialog.close();admin.open(result.uid);}
+      }).catch(err=>{if(ticket===generation)notify(err.message);}).finally(()=>target.disabled=false);
+      break;
+    }
     case 'close': dialog.close(); break;
     case 'export': if (dataset) exportRows(); break;
     case 'prev': state.page=Math.max(1,state.page-1); render(); break;

@@ -10,7 +10,7 @@ Run `node --test tests/puzzle.test.cjs` to check the puzzle rules and each board
 
 ## Studio dashboard
 
-Sign in to [Purrcels Studio](./dashboard/) with an operator account to inspect ranked attempts, save review notes, export filtered results and compare public competitor figures. Studio reads the game’s existing Node.js and PostgreSQL backend. The public sign-in page contains no game records.
+Sign in to [Purrcels Studio](./dashboard/) with an operator account to inspect ranked attempts, save review notes, export filtered results and compare public competitor figures. Studio reads the game’s existing Node.js and PostgreSQL backend. The public sign-in page contains no game records. Superadmins can investigate individual player accounts, inspect Firebase sign-in and game activity statistics, and manage time-limited or indefinite online bans with an audit log.
 
 The [operator guide](./tools/dashboard/README.md) covers account setup, live data and review handling. Run `node --test tests/*.test.cjs tests/*.test.mjs` for the website and dashboard regression suite.
 
