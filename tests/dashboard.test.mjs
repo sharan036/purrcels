@@ -1,10 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {readSnapshot, selectPeriod, metrics, resultsCsv, filterResults, formatTime, DAY, cleanReview} from '../dashboard/model.js';
+import {readSnapshot, readQueuePage, selectPeriod, metrics, resultsCsv, filterResults, formatTime, DAY, cleanReview} from '../dashboard/model.js';
 import {request} from '../dashboard/session.js';
-import {details, overview} from '../dashboard/views.js';
-import {dataSources, competitors} from '../dashboard/resources.js';
+import {details, overview, resultsPanel} from '../dashboard/views.js';
+import {dataSources} from '../dashboard/resources.js';
+import {timeZone,shiftLocalDays} from '../dashboard/time.js';
 
 const at = '2026-11-25T12:00:00Z', asOf = Date.parse(at);
 function attempt(n, relative, seconds = 10) {
@@ -26,18 +27,18 @@ test('counts verified attempts, includes outstanding attempts in the denominator
   assert.equal(formatTime(null),'—');
   assert.equal(formatTime(3600),'1:00:00');
 });
-test('reporting periods use UTC starts and compare the prior partial day at the matching cutoff', () => {
+test('reporting periods use local starts and compare the prior partial day at the matching cutoff', () => {
   const old=-7*DAY;
   const d=readSnapshot(raw([attempt(1,old-5000,3),attempt(2,old-1000,10),attempt(3,old+1000,3),attempt(4,-1000,1)]));
   const p=selectPeriod(d,7);
   assert.equal(p.rows.length,1);
   assert.equal(p.priorRows.length,2);
-  assert.equal(metrics(p.priorRows,d.asOf-7*DAY).verified,1);
+  assert.equal(metrics(p.priorRows,p.previousEnd).verified,1);
   assert.equal(p.trend.at(-1).attempts,1);
   assert.equal(p.hasHistory,true);
 });
 test('empty and short snapshots preserve unavailable values and gaps in coverage', () => {
-  const d=readSnapshot({...raw(),from:'2026-11-25T00:00:00Z'});
+  const d=readSnapshot({...raw(),timeZone,from:new Date(shiftLocalDays(asOf,0,true)).toISOString()});
   const p=selectPeriod(d,7);
   assert.equal(p.partial,true); assert.equal(p.hasHistory,false);
   assert.deepEqual(p.trend.map(t=>t.covered),[false,false,false,false,false,false,true]);
@@ -102,11 +103,21 @@ test('an empty database and a failed read have distinct presentations', () => {
   assert.match(empty,/No attempts in this view/);
   assert.match(dataSources(dataset,{profiles:0,progress:0,bests:0},'studiouser'),/0 ranked starts/);
   assert.match(dataSources(null,null,'studiouser'),/Awaiting ranked results/);
-  assert.match(competitors(),/Google Play/);
 });
 test('review notes and recorded operator names are escaped for display', () => {
   const row=readSnapshot(equalData).rows[0];
   const view=details(row,cleanReview({state:'flagged',note:'<check>',reviewedBy:'staff & team',revision:2,updatedAt:at}));
   assert.match(view,/&lt;check&gt;/); assert.match(view,/Last saved by staff &amp; team/);
   assert.doesNotMatch(view,/<check>/);
+});
+test('historical reviews remain actionable on later server pages and export their attribution', () => {
+  const archived=attempt(17,-90*DAY,null);
+  const review={state:'flagged',note:'Check timing',reviewedBy:'operator',revision:1,updatedAt:at};
+  const payload={asOf:'2026-11-25T12:00:00.000073Z',total:13,flagged:13,attempts:[archived],reviews:{[archived.id]:review}};
+  const page=readQueuePage(payload);
+  const html=resultsPanel(page.rows,{page:2,reviews:page.reviews},true,page.total);
+  assert.match(html,/13–13 of 13/);assert.match(html,/Needs review/);assert.match(html,/data-id="/);
+  assert.match(resultsCsv(page.rows,page.reviews),/"flagged","Check timing","operator","2026-11-25T12:00:00Z"/);
+  assert.equal(page.asOf,payload.asOf);
+  assert.throws(()=>readQueuePage({...payload,reviews:{}}));
 });

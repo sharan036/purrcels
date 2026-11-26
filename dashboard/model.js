@@ -1,3 +1,5 @@
+import {timeZone, isDayBoundary, localDateKey, localISO, shiftLocalDays} from './time.js?v=4';
+
 export const DAY = 86_400_000;
 export const MAX_ROWS = 50_000;
 export const MODES = { campaign: 'Campaign', daily: 'Daily Bento', tower: 'Neko Tower' };
@@ -21,12 +23,17 @@ export function readSnapshot(input) {
   }
   const asOf = timestamp(input.asOf);
   const start = timestamp(input.from);
-  if (!Number.isFinite(asOf) || !Number.isFinite(start) || start % DAY !== 0 || start > asOf) {
-    throw Error('The snapshot needs a valid UTC reporting window.');
+  if (!Number.isFinite(asOf) || !Number.isFinite(start) || start > asOf ||
+      !isDayBoundary(start,input.timeZone??'UTC')) {
+    throw Error('The snapshot needs a valid reporting window.');
   }
-  if (input.attempts.length > MAX_ROWS) throw Error('Choose a snapshot with 50,000 attempts or fewer.');
+  return {asOf, start, rows:readAttempts(input.attempts, start, asOf)};
+}
+
+function readAttempts(attempts, start, asOf) {
+  if (attempts.length > MAX_ROWS) throw Error('Choose a snapshot with 50,000 attempts or fewer.');
   const ids = new Set();
-  const rows = input.attempts.map((raw, i) => {
+  const rows = attempts.map((raw, i) => {
     const invalid = () => { throw Error('Invalid or duplicate attempt at row ' + (i + 1) + '.'); };
     if (!isRecord(raw) || typeof raw.id !== 'string' || !ID_PATTERN.test(raw.id) || ids.has(raw.id)) invalid();
     ids.add(raw.id);
@@ -46,29 +53,39 @@ export function readSnapshot(input) {
     return {id, puzzle, mode, grid, difficulty, started, expires, completed, seconds, mistakes, stars, outcome};
   });
   rows.sort((a, b) => b.started - a.started || a.id.localeCompare(b.id));
-  return {asOf, start, rows};
+  return rows;
+}
+
+export function readQueuePage(data) {
+  const asOf=timestamp(data?.asOf);
+  if (!Number.isFinite(asOf) || !integerIn(data.total,0,2147483647) || !integerIn(data.flagged,0,2147483647) ||
+      !Array.isArray(data.attempts) || data.attempts.length>250 || data.attempts.length>data.total || !isRecord(data.reviews)) {
+    throw Error('The game server returned an unreadable review queue.');
+  }
+  const rows=readAttempts(data.attempts,-Infinity,asOf), reviews={};
+  for (const row of rows) reviews[row.id]=cleanReview(data.reviews[row.id]);
+  return {rows,reviews,total:data.total,flagged:data.flagged,asOf:data.asOf};
 }
 
 export function selectPeriod(dataset, days, mode = 'all') {
-  const lastDay = Math.floor(dataset.asOf / DAY) * DAY;
-  const start = lastDay - (days - 1) * DAY;
-  const previousStart = start - days * DAY;
-  // Compare the same elapsed part of the final UTC day in both cohorts.
-  const previousEnd = dataset.asOf - days * DAY;
+  const start = shiftLocalDays(dataset.asOf,1-days,true);
+  const previousStart = shiftLocalDays(dataset.asOf,1-2*days,true);
+  const previousEnd = shiftLocalDays(dataset.asOf,-days);
   const inMode = row => mode === 'all' || row.mode === mode;
   const rows = dataset.rows.filter(row => row.started >= start && inMode(row));
   const priorRows = dataset.rows.filter(row => row.started >= previousStart && row.started <= previousEnd && inMode(row));
   const trend = Array.from({length: days}, (_, i) => {
-    const date = start + i * DAY;
+    const date = shiftLocalDays(dataset.asOf,i+1-days,true);
     return {date, attempts: 0, verified: 0, covered: date >= dataset.start};
   });
+  const byDate=new Map(trend.map(point=>[localDateKey(point.date),point]));
   for (const row of rows) {
-    const point = trend[Math.floor((row.started - start) / DAY)];
+    const point = byDate.get(localDateKey(row.started));
     point.attempts++;
     if (row.outcome === 'verified') point.verified++;
   }
   const hasHistory = previousStart >= dataset.start;
-  return {rows, priorRows, trend, start, hasHistory, partial: start < dataset.start};
+  return {rows, priorRows, trend, start, previousEnd, hasHistory, partial: start < dataset.start};
 }
 
 export function metrics(rows, cutoff = Infinity) {
@@ -124,9 +141,10 @@ export function resultsCsv(rows, reviews) {
     if (/^\s*[=+@-]/.test(s) || /^[\t\r\n]/.test(s)) s = "'" + s;
     return '"' + s.replaceAll('"', '""') + '"';
   }
-  const header = ['attempt_key','puzzle','mode','daily_difficulty','grid_size','started_utc','outcome','seconds','mistakes','stars','review_state','review_note'];
+  const header = ['attempt_key','puzzle','mode','daily_difficulty','grid_size','started_utc','outcome','seconds','mistakes','stars','review_state','review_note','reviewed_by','review_updated_utc','started_local','review_updated_local','time_zone'];
   const lines = rows.map(row => [row.id, row.puzzle, row.mode, row.difficulty, row.grid,
     new Date(row.started).toISOString(), row.outcome, row.seconds, row.mistakes, row.stars,
-    reviews[row.id]?.state, reviews[row.id]?.note]);
+    reviews[row.id]?.state, reviews[row.id]?.note, reviews[row.id]?.reviewedBy, reviews[row.id]?.updatedAt,
+    localISO(row.started),localISO(reviews[row.id]?.updatedAt),timeZone]);
   return [header, ...lines].map(line => line.map(cell).join(',')).join('\r\n') + '\r\n';
 }

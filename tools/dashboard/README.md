@@ -4,14 +4,15 @@ Open [Purrcels Studio](https://purrcels.devinnovations.co.in/dashboard/) and sig
 
 ## Read and handle results
 
-- **Overview** shows ranked starts, verified completions, completion rate and median server time. Use the date selector for the reporting period. Counts group attempts by UTC start date. Comparisons use the same elapsed time in the previous period.
+- **Overview** shows ranked starts, verified completions, completion rate and median server time. Counts group attempts by local start date. Comparisons use the same local clock time in the previous period, including across daylight-saving changes.
 - **Game results** lets you filter by game mode, outcome, Daily Bento difficulty and puzzle or attempt key. Open an attempt to inspect its timing, stars and mistakes. Select **Flag for review** to save a note.
-- **Review queue** lists flagged results within the loaded reporting window. Open a result to read the operator and update time, then resolve or reopen it. Each edit adds a revision in PostgreSQL. If someone saves an edit first, reopen the attempt to see their latest note. Reviews preserve the verified score.
-- **Export CSV** downloads the filtered results and their review notes to the operator’s device.
+- **Review queue** lists reviewed attempts across all dates. Open a result to read the operator and update time, then resolve or reopen it. Each edit adds a revision in PostgreSQL. Until the game server receives the all-dates queue update, Studio labels the shorter reporting window on this screen.
+- **Export CSV** downloads all results matching the current filters, including the review note, operator and last update. It includes UTC timestamps, local timestamps with their offsets, and the viewer’s time zone. A review queue export uses one reporting timestamp across its pages.
 - **Data sources** shows the signed-in username, reporting window and live counts of profiles, synced puzzle records and ranked personal bests. Choose **Refresh** for an immediate update. The visible workspace otherwise refreshes about once a minute while you are outside an editor.
-- **Competitors** links each manually checked download band and comparator feature to its public source and shows the observation date. These store figures have a different scope from Purrcels’ ranked-play counts.
 
-The API reads up to 56 UTC days. For a busy period it returns the most recent complete dates that fit the 50,000-attempt limit. If the current day alone exceeds capacity, the dashboard shows the error. A successful query with zero matching attempts shows an empty view. Pseudonymous keys identify attempts. Player IDs, boards, proofs, wallet transactions and purchase receipts remain on the server.
+Studio reads the time zone configured on the operator’s device. For example, a browser set to India shows IST. Calendar days run from local midnight. Daily Bento challenge dates and elapsed solve durations keep their game-defined meaning.
+
+Overview and Game results read up to 56 calendar dates. For a busy period they use the most recent complete dates that fit the 50,000-attempt limit. The review queue uses a separate, paginated query over stored reviews. Pseudonymous keys identify attempts in both views.
 
 ## Access and storage
 
@@ -25,6 +26,8 @@ Run website checks from the checkout with `node --test tests/*.test.cjs tests/*.
 
 After the game administrator grants the superadmin role, sign in again with the existing Studio password. **Players** includes a searchable game directory and a paginated Firebase account directory. Open a player to view their profile, sign-in and token-refresh times, progress, results, wallet ledger, shop purchases, ad rewards, latest integrity check and moderation history. **View player** in a ranked result opens the same record. The dashboard reads each history 25 records at a time. Missing Firebase data is labelled separately.
 
-The overview includes player metrics. **Players** adds unique ranked players for 24 hours, 7 days and 28 days, a 14-day UTC trend, new profiles, premium ownership and active purchase holders. A ranked player has started a ranked attempt in the specified period.
+The overview includes player metrics. **Players** adds unique ranked players for the last 24 hours, 7 days and 28 days, a 14-day trend in the displayed time zone, new profiles, premium ownership and active purchase holders. A ranked player has started a ranked attempt in the specified period.
+
+Player directories and moderation lists refresh their visible data while open. Use **Refresh player** to update an individual record. The record stays in place while you review evidence or draft a moderation reason.
 
 Choose **Ban player** on the player record to suspend online access for 24 hours, 7 days, 30 days or until reinstated. Give a reason and confirm. **Moderation** shows the operator, reason, decision time and expiry. Reinstatement also requires a reason and retains the original scores and audit history. The game API enforces active bans and filters public ranked and historical scoreboards. The [game server guide](https://github.com/sharan036/Purrcels-Cat-Logic-Puzzle/blob/main/backend/STUDIO.md) includes role activation and demotion.
