@@ -33,3 +33,10 @@ The overview includes player metrics. **Players** adds unique ranked players for
 Player directories and moderation lists refresh their visible data while open. Use **Refresh player** to update an individual record. The record stays in place while you review evidence or draft a moderation reason.
 
 Choose **Ban player** on the player record to suspend online access for 24 hours, 7 days, 30 days or until reinstated. Give a reason and confirm. **Moderation** shows the operator, reason, decision time and expiry. Reinstatement also requires a reason and retains the original scores and audit history. The game API enforces active bans and filters public ranked and historical scoreboards. The [game server guide](https://github.com/sharan036/Purrcels-Cat-Logic-Puzzle/blob/main/backend/STUDIO.md) includes role activation and demotion.
+
+
+## Notifications
+
+Superadmins can open **Administration → Notifications** or start from **Players → Send notification**. Choose one player, all opted-in players, or opted-in players without the Cozy Cat Pack. A preview shows the eligible accounts and devices before the send is queued. The destination opens Daily Bento or the Fish Treat Shop.
+
+Send history reports device acceptance, failures, unique recorded opens and verified buyers within seven days of a recorded open. A purchase may follow more than one campaign. The shop table lists active and revoked purchases by product over the last 28 days. Device registration requires the game update that adds **Game news and shop offers**. Server activation is documented in the game repository’s `backend/STUDIO.md`.

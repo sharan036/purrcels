@@ -86,7 +86,7 @@ export function identityView(user) {
 export function detailView(data,identity) {
   const m=data.moderation,c=data.counts;
   return btn('back','← Back to '+(data.fromAudit?'moderation':'players'),'admin-back')+
-    '<header class="admin-profile-head"><div><h1 id="admin-player-name">'+e(displayName(data))+'</h1><p class="admin-uid">'+e(data.uid)+'</p></div><div class="admin-form-actions">'+stateTag(m.active)+btn('refresh-player','Refresh player')+'</div></header>'+
+    '<header class="admin-profile-head"><div><h1 id="admin-player-name">'+e(displayName(data))+'</h1><p class="admin-uid">'+e(data.uid)+'</p></div><div class="admin-form-actions">'+stateTag(m.active)+(m.active?'':btn('notify-player','Send notification'))+btn('refresh-player','Refresh player')+'</div></header>'+
     '<div class="admin-metrics">'+[['Ranked attempts',c.starts],['Verified solves',c.verified],['Synced puzzles',c.progress],['Ranked bests',c.bests]].map(([k,v])=>'<article class="card admin-metric"><div><span>'+k+'</span><strong>'+num(v)+'</strong></div></article>').join('')+'</div>'+
     '<div class="admin-detail-grid">'+facts('Game profile',data.profile,'No synced game profile.')+card('Firebase sign-in','<div id="admin-identity" aria-live="polite">'+identityView(identity)+'</div>')+
     card('Game activity',pairs({'Last ranked start':when(c.lastRanked),'Fastest verified solve':c.fastest==null?null:num(c.fastest)+' s','Recorded purchases':c.purchases,'Rewarded ads credited':c.ads}))+

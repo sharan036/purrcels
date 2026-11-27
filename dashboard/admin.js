@@ -1,18 +1,21 @@
+import {createNotifications} from './notifications.js?v=6';
 import {escapeText as escape} from './views.js?v=4';
-import {statsView,trendView,moderationCounts,listShell,listResults,detailView,identityView,historyView,decisionForm,auditView,head} from './admin-views.js?v=4';
+import {statsView,trendView,moderationCounts,listShell,listResults,detailView,identityView,historyView,decisionForm,auditView,head} from './admin-views.js?v=6';
 
 const loading='<p class="admin-muted" role="status">Loading…</p>';
 const unavailable=(message,retry)=>'<p class="admin-muted" role="status">'+escape(message)+'</p><button type="button" class="button" data-admin="'+retry+'">Retry</button>';
 const fresh=()=>({search:'',source:'game',filter:'all',offset:0,tokens:[null]});
 export function createAdmin(content,call,notify,onStats) {
+  const notifications=createNotifications(content,call,notify);
   let epoch=0, view='', list=fresh(), selected=null, section='attempts', historyPage=0, auditPage=0, pendingUid=null;
   let listVersion=0, historyVersion=0, stats=null, statsAt=0, statsJob=null, saving=false;
   const el=id=>content.querySelector('#'+id);
   function leave() {
-    epoch++;listVersion++;historyVersion++; view='';selected=null;saving=false;
+    if(view==='notifications')notifications.clearSelection();
+    notifications.leave();epoch++;listVersion++;historyVersion++; view='';selected=null;saving=false;
   }
   function reset() {
-    leave();list=fresh();auditPage=0;pendingUid=null;stats=null;statsAt=0;statsJob=null;
+    leave();notifications.reset();list=fresh();auditPage=0;pendingUid=null;stats=null;statsAt=0;statsJob=null;
   }
   async function getStats() {
     if(stats && Date.now()-statsAt<60000) return stats;
@@ -61,6 +64,7 @@ export function createAdmin(content,call,notify,onStats) {
   }
   function directory() {
     epoch++;selected=null;saving=false;
+    if(view==='notifications'){notifications.show();return;}
     if(view==='moderation') {
       content.innerHTML=head('Moderation','Review account bans and reinstatements recorded by superadmins.','<button class="button" data-admin="refresh">Refresh</button>')+
         '<div id="admin-stats"></div><section class="card admin-card"><div class="admin-section-head"><h2>Moderation log</h2><a class="text-link" href="#reviews">Review flagged attempts</a></div><div id="admin-audit" aria-live="polite"></div></section>';
@@ -69,6 +73,7 @@ export function createAdmin(content,call,notify,onStats) {
     content.innerHTML=listShell(list);summary(el('admin-stats'),false);loadList();
   }
   function refresh() {
+    if(view==='notifications'){notifications.refresh();return;}
     if(el('admin-list')) {summary(el('admin-stats'),false);loadList();}
     else if(el('admin-audit')) {summary(el('admin-stats'),false);loadAudit();}
   }
@@ -142,6 +147,7 @@ export function createAdmin(content,call,notify,onStats) {
     if(action==='stats'){statsAt=0;summary(el('admin-stats'),view!=='players');return;}
     if(!view)return;
     switch(action){
+      case 'notify-player': if(selected){notifications.select(selected.uid);location.hash='notifications';}break;
       case 'player': case 'retry-player': player(button.dataset.uid);break;
       case 'back': directory();break;
       case 'list': loadList();break;

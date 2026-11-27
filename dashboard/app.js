@@ -1,17 +1,17 @@
 import {cleanReview, filterResults, ID_PATTERN, readQueuePage, readSnapshot, resultsCsv, selectPeriod} from './model.js?v=4';
-import {createAdmin} from './admin.js?v=5';
+import {createAdmin} from './admin.js?v=6';
 import {request, reportingZone} from './session.js?v=5';
 import {timeZone, localDateKey, localDateTime, zoneLabel} from './time.js?v=4';
-import {icon} from './icons.js?v=4';
+import {icon} from './icons.js?v=6';
 import {details, escapeText, listView, overview, pageTitle, resultsPanel} from './views.js?v=4';
 import {dataSources} from './resources.js?v=4';
 
 const $ = query => document.querySelector(query);
 const content = $('#content'), dialog = $('#record-dialog');
 const freshFilters = () => ({outcome:'all',difficulty:'all',review:'all',search:''});
-const viewNames = {overview:'Overview',results:'Game results',reviews:'Review queue',sources:'Data sources',players:'Players',moderation:'Moderation'};
+const viewNames = {overview:'Overview',results:'Game results',reviews:'Review queue',sources:'Data sources',players:'Players',moderation:'Moderation',notifications:'Notifications'};
 const state = {days:7,mode:'all',filters:freshFilters(),reviews:{},page:1};
-const adminView = view => ['players','moderation'].includes(view);
+const adminView = view => ['players','moderation','notifications'].includes(view);
 const viewFromHash = () => {
   const view=location.hash.slice(1);
   return Object.hasOwn(viewNames,view) && (!adminView(view)||identity?.role==='superadmin') ? view : 'overview';
