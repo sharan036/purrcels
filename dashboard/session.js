@@ -1,5 +1,13 @@
 const BASE = 'https://purrcels-api.devinnovations.co.in/v1/studio/';
 
+export function reportingZone(session, deviceZone) {
+  if (deviceZone === 'Asia/Calcutta' || deviceZone === 'Asia/Kolkata') {
+    // Older game servers can rewrite Kolkata to an alias absent from PostgreSQL.
+    return session.databaseTimeZones === true ? 'Asia/Kolkata' : 'UTC';
+  }
+  return deviceZone;
+}
+
 export class StudioError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
