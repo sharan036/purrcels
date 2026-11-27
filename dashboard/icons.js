@@ -1,4 +1,5 @@
 const paths = {
+  bell:'<path d="M18 8a6 6 0 0 0-12 0c0 7-3 8-3 10h18c0-2-3-3-3-10ZM10 21h4"/>',
   players:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m0-15a3 3 0 0 1 0 6m2 3c3 0 4 2 4 5"/>',
   overview:'<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/>',
   results:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18m-12 4h1m4 0h3m-8 4h1m4 0h3"/>',

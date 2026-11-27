@@ -275,3 +275,17 @@ noscript p {position:fixed; bottom:12px; inset-inline:12px; text-align:center; b
   .source-chip{position:relative;min-width:32px;min-height:32px;justify-content:center;padding:6px}
   .source-chip #source-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 }
+
+.push-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px;margin:14px 0 18px}
+.push-fields label {display:grid;align-content:start;gap:6px;font-size:13px;font-weight:650}
+.push-fields label[hidden] {display:none}
+.push-fields input,.push-fields select,.push-fields textarea {font:inherit;color:inherit;background:#fff;border:1px solid var(--line,#d8d2d6);border-radius:8px;padding:10px 12px;min-width:0;width:100%;box-sizing:border-box}
+.push-fields textarea {resize:vertical}
+.push-wide {grid-column:1/-1}
+.push-fields small,.push-secondary {font-size:12px;font-weight:500;color:var(--muted,#635b61)}
+.push-secondary {display:block;max-width:27ch;overflow-wrap:anywhere}
+.push-review {border-color:#a7758c}
+.push-review p {margin:8px 0}
+#push-history details summary {cursor:pointer;white-space:normal;max-width:28ch}
+#push-history details p {max-width:38ch;white-space:normal}
+#push-error:empty {display:none}
