@@ -1,6 +1,6 @@
 import {cleanReview, filterResults, ID_PATTERN, readQueuePage, readSnapshot, resultsCsv, selectPeriod} from './model.js?v=4';
-import {createAdmin} from './admin.js?v=4';
-import {request} from './session.js';
+import {createAdmin} from './admin.js?v=5';
+import {request, reportingZone} from './session.js?v=5';
 import {timeZone, localDateKey, localDateTime, zoneLabel} from './time.js?v=4';
 import {icon} from './icons.js?v=4';
 import {details, escapeText, listView, overview, pageTitle, resultsPanel} from './views.js?v=4';
@@ -40,7 +40,7 @@ async function operatorRequest(path,body) {
 }
 async function adminRequest(path,body) {
   if(identity?.role!=='superadmin') throw Error('Superadmin access required.');
-  return operatorRequest('admin/'+path,body);
+  return operatorRequest('admin/'+path,path==='stats' ? {...body,timeZone:identity.reportingZone} : body);
 }
 const admin=createAdmin(content,adminRequest,notify,stats=>{
   if(identity?.reviewQueue) {flaggedTotal=stats.flagged;updateBadge();}
@@ -86,7 +86,7 @@ function activate(user) {
   const reviewQueue=user.reviewQueue===true;
   const sameAccount=identity?.username===user.username && identity.role===role && identity.reviewQueue===reviewQueue;
   if (!sameAccount) lock('');
-  identity={username:user.username,expiresAt:expiry,role,reviewQueue}; roleUI(role);
+  identity={username:user.username,expiresAt:expiry,role,reviewQueue,reportingZone:reportingZone(user,timeZone)}; roleUI(role);
   clearTimeout(sessionTimer);
   sessionTimer=setTimeout(()=>lock('Your session has expired. Sign in again.',true),expiry-Date.now());
   $('#login-screen').hidden=true; $('#studio-shell').hidden=false; $('#password').value='';
@@ -152,7 +152,7 @@ async function fetchWorkspace() {
   if (!identity) return;
   const epoch=generation, version=++listVersion;
   try {
-    const data=await request('workspace?timeZone='+encodeURIComponent(timeZone));
+    const data=await request('workspace?timeZone='+encodeURIComponent(identity.reportingZone));
     if (epoch!==generation || version!==listVersion) return;
     if (data.operator!==identity.username) { lock('Checking your session…'); return checkSession(); }
     const fresh=readSnapshot(data.snapshot);

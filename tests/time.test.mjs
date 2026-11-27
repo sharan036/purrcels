@@ -2,6 +2,15 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {reportingZone} from '../dashboard/session.js';
+
+test('India uses UTC coverage on older APIs and Kolkata on APIs that check the database zone catalog',()=>{
+  for(const deviceZone of ['Asia/Calcutta','Asia/Kolkata']) {
+    assert.equal(reportingZone({authenticated:true},deviceZone),'UTC');
+    assert.equal(reportingZone({authenticated:true,databaseTimeZones:true},deviceZone),'Asia/Kolkata');
+  }
+  assert.equal(reportingZone({authenticated:true},'America/New_York'),'America/New_York');
+});
 
 function inZone(zone, assertions) {
   const script = `

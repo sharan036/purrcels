@@ -1,4 +1,3 @@
-import {timeZone} from './time.js?v=4';
 import {escapeText as escape} from './views.js?v=4';
 import {statsView,trendView,moderationCounts,listShell,listResults,detailView,identityView,historyView,decisionForm,auditView,head} from './admin-views.js?v=4';
 
@@ -18,7 +17,7 @@ export function createAdmin(content,call,notify,onStats) {
   async function getStats() {
     if(stats && Date.now()-statsAt<60000) return stats;
     if(!statsJob) {
-      const job=call('stats',{timeZone}).then(result=>{
+      const job=call('stats',{}).then(result=>{
         if(statsJob===job){stats=result;statsAt=Date.now();onStats(result.stats);}
         return result;
       }).finally(()=>{if(statsJob===job)statsJob=null;});

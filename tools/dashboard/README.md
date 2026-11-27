@@ -12,6 +12,8 @@ Open [Purrcels Studio](https://purrcels.devinnovations.co.in/dashboard/) and sig
 
 Studio reads the time zone configured on the operator’s device. For example, a browser set to India shows IST. Calendar days run from local midnight. Daily Bento challenge dates and elapsed solve durations keep their game-defined meaning.
 
+While an older game server is running, an Indian browser requests UTC coverage and groups overview attempts in IST. The daily player chart labels its server-calculated dates in UTC during that interval. After the server update, that chart also uses Indian midnight.
+
 Overview and Game results read up to 56 calendar dates. For a busy period they use the most recent complete dates that fit the 50,000-attempt limit. The review queue uses a separate, paginated query over stored reviews. Pseudonymous keys identify attempts in both views.
 
 ## Access and storage
